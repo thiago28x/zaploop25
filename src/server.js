@@ -66,6 +66,11 @@ baileysApp.post("/send-message", async (req, res) => {
     }
 
     console.log(`/send-message: Sending message to formatted JID: ${jid}\n`);
+
+    // Update presence to 'composing'
+    await client.sendPresenceUpdate('composing', jid);
+    await new Promise(resolve => setTimeout(resolve, 2500)); // Wait for 2.5 seconds
+
     await client.sendMessage(jid, { text: message });
     res.send({ status: "Message sent" });
   } catch (error) {
@@ -153,11 +158,18 @@ baileysApp.get("/session-info/:sessionId", async (req, res) => {
 
         let store = {};
         if (client.store) {
-            store = {
-                contacts: await client.store.contacts.all(),
-                chats: await client.store.chats.all(),
-                messages: await client.store.messages.all()
-            };
+            try {
+                store = {
+                    contacts: await client.store.contacts.all(),
+                    chats: await client.store.chats.all(),
+                    messages: await client.store.messages.all()
+                };
+                console.log(`Fetched contacts: ${Object.keys(store.contacts).length}\n`);
+                console.log(`Fetched chats: ${store.chats.length}\n`);
+                console.log(`Fetched messages: ${store.messages.length}\n`);
+            } catch (error) {
+                console.error(`Error fetching store data: ${error}\n`);
+            }
         }
 
         res.send({
@@ -172,6 +184,8 @@ baileysApp.get("/session-info/:sessionId", async (req, res) => {
         res.status(500).send({ error: "Failed to fetch session info" });
     }
 });
+
+
 
 baileysApp.post("/send-image", async (req, res) => {
     let { sessionId, jid, imageUrl, caption } = req.body;
@@ -259,5 +273,37 @@ async function gracefulShutdown() {
         process.exit(1);
     }
 }
+
+// Middleware to log requests and validate JSON body
+baileysApp.use((req, res, next) => {
+    console.log(`Request Logger: ${req.method} ${req.url}\n`);
+
+    // Check if the request has a JSON body
+    if (!req.is('application/json')) {
+        return res.status(400).send({ error: 'Request must be in JSON format' });
+    }
+
+    // Check for 'jid' and 'sessionId' in the body
+    let { jid, sessionId } = req.body;
+    if (!jid || !sessionId) {
+        return res.status(400).send({ error: 'Missing jid or sessionId in request body' });
+    }
+
+    // Sanitize 'jid' by removing all non-numeric characters
+    req.body.jid = jid.replace(/\D/g, '');
+
+    // Optionally, validate the length of the phone number
+    if (req.body.jid.length < 10 || req.body.jid.length > 15) {
+        return res.status(400).send({ error: 'Invalid phone number length' });
+    }
+
+    // Remove leading zeros if necessary
+    req.body.jid = req.body.jid.replace(/^0+/, '');
+
+    //trim
+    req.body.jid = req.body.jid.trim();
+
+    next();
+});
 
 startServer();

@@ -103,6 +103,13 @@ async function sendMessage() {
 
 //send image
 async function sendImage() {
+    let sessionId = document.getElementById('imageSessionSelect').value;
+    let jid = document.getElementById('imageJid').value.trim();
+    let imageUrl = document.getElementById('imageUrl').value.trim();
+    let caption = document.getElementById('imageCaption').value.trim();
+
+    console.log(`sendImage: sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}\n`);
+
     try {
         let response = await fetch('/send-image', {
             method: 'POST',
@@ -111,6 +118,12 @@ async function sendImage() {
             },
             body: JSON.stringify({ sessionId, jid, imageUrl, caption })
         });
+
+        if (!response.ok) throw new Error('Failed to send image');
+
+        alert('Image sent successfully!');
+      //  document.getElementById('imageUrl').value = '';
+      //  document.getElementById('caption').value = '';
     } catch (error) {
         console.error(`sendImage: Error sending image: ${error}\n`);
         alert('Failed to send image');
