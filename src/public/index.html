@@ -3,12 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Baileys Dashboard</title>
+    <title>Zaploop Dashboard</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- favicon https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Google_Messages_icon_%282022%29.svg/192px-Google_Messages_icon_%282022%29.svg.png-->
+    <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Google_Messages_icon_%282022%29.svg/192px-Google_Messages_icon_%282022%29.svg.png" type="image/png">
+
 </head>
 <body>
+<!-- add header, full width -->
+<header style="width: 100%; height: 60px;background-color: #15293d; padding: 20px;">
+    <h1>Zaploop Dashboard</h1>
+</header>
+
+
     <div class="container">
-        <h1>Baileys Dashboard</h1>
+        <h1>Zaploop Dashboard</h1>
         
         <div class="section">
             <h2>Create New Session</h2>
@@ -45,6 +54,87 @@
                 <button onclick="sendImage()">Send Image</button>
             </div>
         </div>
+    </div>
+    <!-- server status
+       res.send({
+        status: "success",
+        ram: {
+            total: formatBytes(totalRAM),
+            used: formatBytes(usedRAM), 
+            free: formatBytes(freeRAM)
+        },
+        cpu: {
+            total: cpuCount,
+            used: cpuUsage.toFixed(2),
+            free: cpuFree.toFixed(2)
+        },
+        disk: {
+            total: formatBytes(totalDisk),
+            used: formatBytes(usedDisk),
+            free: formatBytes(freeDisk)
+        }
+    }); 
+    draw a health bar for each resource.
+    -->
+    <!-- refresh button to call again -->
+    <div id="serverStatus">´
+     <span id="refresh-server-status" onclick="getServerStatus()"> 🔄</span>
+        <div class="resource">
+            <div class="resource-name">RAM</div>
+            <div class="resource-bar" id="ramBar">
+                <div class="bar-fill"></div>
+                <div class="bar-text"></div>
+            </div>
+        </div>
+        <div class="resource">
+            <div class="resource-name">CPU</div>
+            <div class="resource-bar" id="cpuBar">
+                <div class="bar-fill"></div>
+                <div class="bar-text"></div>
+            </div>
+        </div>
+        <div class="resource">
+            <div class="resource-name">Disk</div>
+            <div class="resource-bar" id="diskBar">
+                <div class="bar-fill"></div>
+                <div class="bar-text"></div>
+            </div>
+        </div>
+        <style>
+            #serverStatus {
+                padding: 20px;
+                background: #f5f5f5;
+                border-radius: 8px;
+            }
+            .resource {
+                margin: 10px 0;
+            }
+            .resource-name {
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+            .resource-bar {
+                height: 25px;
+                background: #ddd;
+                border-radius: 4px;
+                position: relative;
+                overflow: hidden;
+            }
+            .bar-fill {
+                height: 100%;
+                width: 0%;
+                background: #4CAF50;
+                transition: width 0.3s ease;
+            }
+            .bar-text {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: #000;
+                font-size: 12px;
+            }
+        </style>
     </div>
     <script src="script.js"></script>
 </body>

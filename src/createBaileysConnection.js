@@ -64,10 +64,11 @@ async function startBaileysConnection(sessionId = 'default') {
             let sock = makeWASocket({
                 auth: state,
                 printQRInTerminal: true,
-                markOnlineOnConnect: false, // Add this for better connection handling
+                markOnlineOnConnect: false,
                 retryRequestDelayMs: 2000,
                 connectTimeoutMs: 30000,
                 defaultQueryTimeoutMs: 60000,
+                browser: ['MacBook', 'Safari', '10.15.7'],
                 // Add message retry options
                 msgRetryCounterMap: {},
                 getMessage: async (key) => {
@@ -79,10 +80,14 @@ async function startBaileysConnection(sessionId = 'default') {
 
             // Add message handling
             sock.ev.on('messages.upsert', async ({ messages, type }) => {
+
+                //if fromMe, skip
+                if (messages.fromMe) return;
+
                 let webhookUrl = process.env.WEBHOOK_URL;
                 
-                console.log(`startBaileysConnection: New message in session ${sessionId}, type: ${type}\n`);
-                console.log(`startBaileysConnection: Attempting to forward ${messages.length} messages to webhook\n`);
+                console.log(`🐸 Webhook: New message in ${sessionId}, type: ${type}\n`);
+            //    console.log(`startBaileysConnection: Attempting to forward ${messages.length} messages to webhook\n`);
                 
                 for (let message of messages) {
                     let msg = message.message;
@@ -131,8 +136,8 @@ async function startBaileysConnection(sessionId = 'default') {
                             timestamp: new Date().toISOString()
                         };
 
-                        console.log(`startBaileysConnection: Sending webhook payload for message ${message.key.id}\n`);
-                        console.log(`startBaileysConnection: Message content type: ${messageContent.type}\n`);
+                        console.log(`🐸 startBaileysConnection: Sending webhook payload for message ${message.key.id}\n`);
+                       // console.log(`startBaileysConnection: Message content type: ${messageContent.type}\n`);
                         
                         let response = await fetch(webhookUrl, {
                             method: 'POST',
@@ -147,7 +152,7 @@ async function startBaileysConnection(sessionId = 'default') {
                             throw new Error(`Webhook request failed with status ${response.status}`);
                         }
 
-                        console.log(`startBaileysConnection: Successfully forwarded message ${message.key.id} to webhook\n`);
+                       // console.log(`startBaileysConnection: Successfully forwarded message ${message.key.id} to webhook\n`);
                     } catch (error) {
                         console.error(`startBaileysConnection: Error sending webhook for message ${message.key.id}: ${error}\n`);
                     }
@@ -158,7 +163,8 @@ async function startBaileysConnection(sessionId = 'default') {
             sock.ev.on('connection.update', (update) => {
                 let { connection, lastDisconnect, qr } = update;
                 console.log(`startBaileysConnection: Session ${sessionId} connection status: ${connection}\n`);
-                
+                console.log(`startBaileysConnection: Connection details - QR Code Available: ${qr ? 'Yes' : 'No'}, Last Disconnect Error: ${lastDisconnect?.error?.message || 'None'}\n`);
+                console.log(`startBaileysConnection: Current connection state: ${connection === 'open' ? 'Connected' : connection === 'close' ? 'Disconnected' : connection === 'connecting' ? 'Connecting' : 'Unknown'}\n`);
                 connectionStates.set(sessionId, {
                     state: connection,
                     qr: qr,

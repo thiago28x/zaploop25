@@ -6,18 +6,41 @@ require('dotenv').config();
 
 let baileysApp = express();
 
+// Add near the top of the file, after the imports
+let isStarting = false;
+let lastStartAttempt = 0;
+let MIN_RESTART_INTERVAL = 30000; // 30 seconds
+
 // Restore sessions before starting the server
 async function startServer() {
+    let currentTime = Date.now();
     console.log(`startServer: Initializing server\n`);
+    
+    // Prevent multiple simultaneous start attempts
+    if (isStarting) {
+        console.log(`startServer: Server is already starting\n`);
+        process.exit(1);
+    }
+
+    // Check if we're restarting too quickly
+    if (currentTime - lastStartAttempt < MIN_RESTART_INTERVAL) {
+        console.error(`startServer: Restarting too quickly. Waiting ${MIN_RESTART_INTERVAL/1000} seconds before next attempt\n`);
+        process.exit(1);
+    }
+
+    isStarting = true;
+    lastStartAttempt = currentTime;
     
     try {
         await restoreSessions();
         
         baileysApp.listen(4001, () => {
+            isStarting = false;
             console.log(`startServer: Baileys service running on port 4001\n`);
         });
     } catch (error) {
         console.error(`startServer: Error starting server: ${error}\n`);
+        isStarting = false;
         process.exit(1);
     }
 }
@@ -215,7 +238,7 @@ baileysApp.post("/send-image", async (req, res) => {
             caption: caption || 'hello!'
         });
 
-        res.send({ status: "Image sent successfully" });
+        res.status(200).send({ status: "200 - Image sent successfully" });
     } catch (error) {
         console.error(`/send-image: Error sending image: ${error}\n`);
         res.status(500).send({ 
@@ -255,9 +278,31 @@ process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
 async function gracefulShutdown() {
-    console.log('Received shutdown signal\n');
+    let isShuttingDown = false;  // Prevent multiple shutdown attempts
+    let shutdownTimeout = 10000; // 10 seconds timeout
+    
+    console.log(`gracefulShutdown: Received shutdown signal\n`);
+    
+    if (isShuttingDown) {
+        console.log(`gracefulShutdown: Shutdown already in progress\n`);
+        return;
+    }
+    
+    isShuttingDown = true;
     
     try {
+        // Set a timeout for forced shutdown
+        let forceShutdown = setTimeout(() => {
+            console.error(`gracefulShutdown: Forced shutdown after ${shutdownTimeout}ms timeout\n`);
+            process.exit(1);
+        }, shutdownTimeout);
+        
+        // Close the Express server first
+        if (baileysApp.server) {
+            console.log(`gracefulShutdown: Closing Express server\n`);
+            await new Promise(resolve => baileysApp.server.close(resolve));
+        }
+        
         // Close all WhatsApp connections gracefully
         for (let [sessionId, client] of sessions) {
             console.log(`gracefulShutdown: Closing session ${sessionId}\n`);
@@ -268,12 +313,68 @@ async function gracefulShutdown() {
         sessions.clear();
         connectionStates.clear();
         
+        clearTimeout(forceShutdown);
+        console.log(`gracefulShutdown: Shutdown completed successfully\n`);
         process.exit(0);
     } catch (error) {
         console.error(`gracefulShutdown: Error during shutdown: ${error}\n`);
         process.exit(1);
     }
 }
+
+//server free ram and cpu, free HD space, pm2 log file size.
+function getServerStatus() {
+    let totalRAM = os.totalmem();
+    let freeRAM = os.freemem();
+    let usedRAM = totalRAM - freeRAM;
+
+    let cpuUsage = os.loadavg()[0]; // 1 minute load average
+    let cpuCount = os.cpus().length;
+    let cpuFree = cpuCount - cpuUsage;
+
+    // Get disk space info
+    let diskInfo = fs.statfsSync('/');
+    let totalDisk = diskInfo.blocks * diskInfo.bsize;
+    let freeDisk = diskInfo.bfree * diskInfo.bsize;
+    let usedDisk = totalDisk - freeDisk;
+
+    // Convert bytes to human readable format
+    let formatBytes = (bytes) => {
+        let units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let i = 0;
+        while (bytes >= 1024 && i < units.length - 1) {
+            bytes /= 1024;
+            i++;
+        }
+        return `${bytes.toFixed(2)} ${units[i]}`;
+    };
+
+    console.log(`getServerStatus: System resources status:\n` +
+        `RAM - Total: ${formatBytes(totalRAM)}, Used: ${formatBytes(usedRAM)}, Free: ${formatBytes(freeRAM)}\n` +
+        `CPU - Total Cores: ${cpuCount}, Used: ${cpuUsage.toFixed(2)}, Free: ${cpuFree.toFixed(2)}\n` + 
+        `Disk - Total: ${formatBytes(totalDisk)}, Used: ${formatBytes(usedDisk)}, Free: ${formatBytes(freeDisk)}\n`);
+
+    res.send({
+        status: "success",
+        ram: {
+            total: formatBytes(totalRAM),
+            used: formatBytes(usedRAM), 
+            free: formatBytes(freeRAM)
+        },
+        cpu: {
+            total: cpuCount,
+            used: cpuUsage.toFixed(2),
+            free: cpuFree.toFixed(2)
+        },
+        disk: {
+            total: formatBytes(totalDisk),
+            used: formatBytes(usedDisk),
+            free: formatBytes(freeDisk)
+        }
+    });
+}
+getServerStatus();  
+
 
 // Middleware to log requests and validate JSON body
 baileysApp.use((req, res, next) => {
@@ -287,7 +388,7 @@ baileysApp.use((req, res, next) => {
     // Check for 'jid' and 'sessionId' in the body
     let { jid, sessionId } = req.body;
     if (!jid || !sessionId) {
-        return res.status(400).send({ error: 'Missing jid or sessionId in request body' });
+        return res.status(400).send({ error: 'Missing phone number or sessionId in request body' });
     }
 
     // Sanitize 'jid' by removing all non-numeric characters
