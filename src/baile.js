@@ -104,11 +104,12 @@ baileysApp.post("/send-message", async (req, res) => {
   let { sessionId, jid, message } = req.body;
   console.log(`/send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
-  let client = getSession(sessionId);
-  if (!client) {
-    console.log(`/send-message: No session found for sessionId: \n${sessionId}\n`);
-    return res.status(404).send({ error: "no session found" });
-  }
+  try {
+    let client = getSession(sessionId);
+    if (!client) {
+      console.log(`/send-message: No session found for sessionId: \n${sessionId}\n`);
+      return res.status(404).send({ error: "no session found" });
+    }
 
     // Format JID if needed
     if (!jid.includes('@')) {
@@ -124,9 +125,11 @@ baileysApp.post("/send-message", async (req, res) => {
     console.log(`/send-message: Sending message to formatted JID: ${jid}\n`);
 
     // Update presence to 'composing'
+    console.log(`send-message: Calling sendPresenceUpdate with status: 'composing', jid: ${jid}\n`);
     await client.sendPresenceUpdate('composing', jid);
     await new Promise(resolve => setTimeout(resolve, 2500)); // Wait for 2.5 seconds
 
+    console.log(`send-message: Calling sendMessage with jid: ${jid}, message: ${message}\n`);
     await client.sendMessage(jid, { text: message });
     res.send({ status: "Message sent" });
   } catch (error) {
