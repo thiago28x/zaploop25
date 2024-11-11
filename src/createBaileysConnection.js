@@ -153,6 +153,8 @@ function validateSession(sessionId) {
 // Add function to get existing session
 function getSession(sessionId = 'default') {
     console.log(`getSession: Retrieving session ${sessionId}\n`);
+    //log sessions
+    console.log(sessions);
     return sessions.get(sessionId);
 }
 

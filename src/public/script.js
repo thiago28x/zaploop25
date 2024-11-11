@@ -79,6 +79,8 @@ async function sendMessage() {
         return;
     }
 
+    console.log(`sendMessage: sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
+
     try {
         let response = await fetch('/send-message', {
             method: 'POST',
@@ -91,10 +93,27 @@ async function sendMessage() {
         if (!response.ok) throw new Error('Failed to send message');
 
         alert('Message sent successfully!');
+        document.getElementById('jid').value = '';
         document.getElementById('message').value = '';
     } catch (error) {
-        console.error('Error sending message:', error);
+        console.error(`sendMessage: Error sending message: ${error}\n`);
         alert('Failed to send message');
+    }
+}
+
+//send image
+async function sendImage() {
+    try {
+        let response = await fetch('/send-image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ sessionId, jid, imageUrl, caption })
+        });
+    } catch (error) {
+        console.error(`sendImage: Error sending image: ${error}\n`);
+        alert('Failed to send image');
     }
 }
 
@@ -120,8 +139,15 @@ async function updateSessionStatus(sessionId) {
 
 // Add session info viewer
 async function viewSessionInfo(sessionId) {
+    console.log(`viewSessionInfo: sessionId: ${sessionId}\n`);
+    
     try {
         let response = await fetch(`/session-info/${sessionId}`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch session info');
+        }
+
         let data = await response.json();
         
         // Create a modal to display the info
@@ -131,8 +157,9 @@ async function viewSessionInfo(sessionId) {
             <div class="modal-content">
                 <h3>Session Info: ${sessionId}</h3>
                 <div class="info-tabs">
-                    <button onclick="showTab('contacts')">Contacts (${Object.keys(data.info.contacts).length})</button>
-                    <button onclick="showTab('chats')">Chats (${data.info.chats.length})</button>
+                    <button onclick="showTab('contacts')">Contacts (${Object.keys(data.contacts).length})</button>
+                    <button onclick="showTab('chats')">Chats (${data.chats.length})</button>
+                    <button onclick="showTab('messages')">Messages (${data.messages.length})</button>
                 </div>
                 <div class="info-content">
                     <pre>${JSON.stringify(data.info, null, 2)}</pre>
@@ -142,7 +169,7 @@ async function viewSessionInfo(sessionId) {
         `;
         document.body.appendChild(modal);
     } catch (error) {
-        console.error('Error fetching session info:', error);
+        console.error(`viewSessionInfo: Error fetching session info: ${error}\n`);
         alert('Failed to fetch session info');
     }
 }
@@ -151,4 +178,4 @@ async function viewSessionInfo(sessionId) {
 document.addEventListener('DOMContentLoaded', refreshSessions);
 
 // Refresh sessions every 30 seconds
-setInterval(refreshSessions, 30000); 
+//setInterval(refreshSessions, 30000); 

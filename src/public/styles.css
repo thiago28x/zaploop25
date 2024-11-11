@@ -72,7 +72,7 @@ button:hover {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background-color: #gray;
+    background-color: gray;
 }
 
 .session-actions {

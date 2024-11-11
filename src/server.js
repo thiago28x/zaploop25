@@ -46,18 +46,34 @@ baileysApp.post("/create-connection", async (req, res) => {
 
 baileysApp.post("/send-message", async (req, res) => {
   let { sessionId, jid, message } = req.body;
-  console.log(`/send-message: Sending message using session ${sessionId}\n`);
+  console.log(`/send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
   try {
     let client = getSession(sessionId);
     if (!client) {
       throw new Error("Session not found");
     }
+
+    // Format JID if needed
+    if (!jid.includes('@')) {
+      // Assume it's a phone number if no @ is present
+      jid = `${jid}@s.whatsapp.net`;
+    }
+    
+    // Validate JID format
+    if (!jid.match(/^[0-9]+@(s\.whatsapp\.net|g\.us)$/)) {
+      throw new Error("Invalid JID format");
+    }
+
+    console.log(`/send-message: Sending message to formatted JID: ${jid}\n`);
     await client.sendMessage(jid, { text: message });
     res.send({ status: "Message sent" });
   } catch (error) {
     console.error(`/send-message: Error sending message: ${error}\n`);
-    res.status(500).send({ error: "Message not sent" });
+    res.status(500).send({ 
+      error: "Message not sent",
+      details: error.message 
+    });
   }
 });
 
@@ -146,11 +162,51 @@ baileysApp.get("/session-info/:sessionId", async (req, res) => {
 
         res.send({
             status: "success",
-            info: store
+            info: store,
+            contacts: Object.keys(store.contacts || {}).length,
+            chats: (store.chats || []).length,
+            messages: (store.messages || []).length
         });
     } catch (error) {
         console.error(`/session-info/${sessionId}: Error fetching info: ${error}\n`);
         res.status(500).send({ error: "Failed to fetch session info" });
+    }
+});
+
+baileysApp.post("/send-image", async (req, res) => {
+    let { sessionId, jid, imageUrl, caption } = req.body;
+    console.log(`/send-image: Request params - sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}\n`);
+    
+    try {
+        let client = getSession(sessionId);
+        if (!client) {
+            throw new Error("Session not found");
+        }
+
+        // Format JID if needed
+        if (!jid.includes('@')) {
+            jid = `${jid}@s.whatsapp.net`;
+        }
+        
+        // Validate JID format
+        if (!jid.match(/^[0-9]+@(s\.whatsapp\.net|g\.us)$/)) {
+            throw new Error("Invalid JID format");
+        }
+
+        console.log(`/send-image: Sending image to formatted JID: ${jid}\n`);
+        
+        await client.sendMessage(jid, {
+            image: { url: imageUrl || 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg' },
+            caption: caption || 'hello!'
+        });
+
+        res.send({ status: "Image sent successfully" });
+    } catch (error) {
+        console.error(`/send-image: Error sending image: ${error}\n`);
+        res.status(500).send({ 
+            error: "Image not sent",
+            details: error.message 
+        });
     }
 });
 
