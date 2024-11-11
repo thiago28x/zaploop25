@@ -2,6 +2,7 @@ let express = require("express");
 let { startBaileysConnection, getSession, restoreSessions, sessions, connectionStates } = require("./createBaileysConnection");
 let path = require('path');
 let fs = require('fs');
+require('dotenv').config();
 
 let baileysApp = express();
 

@@ -79,11 +79,78 @@ async function startBaileysConnection(sessionId = 'default') {
 
             // Add message handling
             sock.ev.on('messages.upsert', async ({ messages, type }) => {
+                let webhookUrl = process.env.WEBHOOK_URL;
+                
                 console.log(`startBaileysConnection: New message in session ${sessionId}, type: ${type}\n`);
+                console.log(`startBaileysConnection: Attempting to forward ${messages.length} messages to webhook\n`);
                 
                 for (let message of messages) {
-                    console.log(`startBaileysConnection: Message from ${message.key.remoteJid}\n`);
-                    // Handle message here or emit to a message handler
+                    let msg = message.message;
+                    if (!msg) continue; // Skip if no message content
+
+                    try {
+                        // Extract message content based on type
+                        let messageContent = {
+                            id: message.key.id,
+                            from: message.key.remoteJid,
+                            timestamp: message.messageTimestamp,
+                            type: Object.keys(msg)[0], // Gets the message type (conversation, imageMessage, etc.)
+                            text: msg.conversation || 
+                                 msg.extendedTextMessage?.text || 
+                                 msg.imageMessage?.caption ||
+                                 msg.videoMessage?.caption ||
+                                 msg.documentMessage?.caption || 
+                                 null,
+                            // Media content
+                            mediaUrl: msg.imageMessage?.url || 
+                                    msg.videoMessage?.url || 
+                                    msg.documentMessage?.url || 
+                                    null,
+                            mimetype: msg.imageMessage?.mimetype || 
+                                     msg.videoMessage?.mimetype || 
+                                     msg.documentMessage?.mimetype || 
+                                     null,
+                            // Document specific
+                            fileName: msg.documentMessage?.fileName || null,
+                            // Contact card
+                            vCard: msg.contactMessage?.vcard || null,
+                            // Location
+                            location: msg.locationMessage ? {
+                                latitude: msg.locationMessage.degreesLatitude,
+                                longitude: msg.locationMessage.degreesLongitude,
+                                name: msg.locationMessage.name || null
+                            } : null,
+                            // Raw message object for complete data
+                            rawMessage: message
+                        };
+
+                        let webhookPayload = {
+                            sessionId,
+                            messageType: type,
+                            message: messageContent,
+                            timestamp: new Date().toISOString()
+                        };
+
+                        console.log(`startBaileysConnection: Sending webhook payload for message ${message.key.id}\n`);
+                        console.log(`startBaileysConnection: Message content type: ${messageContent.type}\n`);
+                        
+                        let response = await fetch(webhookUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-WhatsApp-Session': sessionId
+                            },
+                            body: JSON.stringify(webhookPayload)
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`Webhook request failed with status ${response.status}`);
+                        }
+
+                        console.log(`startBaileysConnection: Successfully forwarded message ${message.key.id} to webhook\n`);
+                    } catch (error) {
+                        console.error(`startBaileysConnection: Error sending webhook for message ${message.key.id}: ${error}\n`);
+                    }
                 }
             });
 
