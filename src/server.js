@@ -1,19 +1,22 @@
-let express = require("express");
-let { startBaileysConnection, getSession, restoreSessions, sessions, connectionStates } = require("./createBaileysConnection");
-let path = require('path');
-let fs = require('fs');
+const express = require('express');
+const { startBaileysConnection, getSession, restoreSessions, sessions, connectionStates } = require('./createBaileysConnection');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
-
-let baileysApp = express();
-
-// Add near the top of the file, after the imports
+const os = require('os');
 let isStarting = false;
 let lastStartAttempt = 0;
-let MIN_RESTART_INTERVAL = 30000; // 30 seconds
+const MIN_RESTART_INTERVAL = 30000; // 30 seconds
+const baileysApp = express();
+
+/* this is a Express server to send and receive whatsapp messages using baileys.*/
+
+//git add . && git commit -m "update" && git push
+
 
 // Restore sessions before starting the server
 async function startServer() {
-    let currentTime = Date.now();
+    const currentTime = Date.now();
     console.log(`startServer: Initializing server\n`);
     
     // Prevent multiple simultaneous start attempts
@@ -24,7 +27,7 @@ async function startServer() {
 
     // Check if we're restarting too quickly
     if (currentTime - lastStartAttempt < MIN_RESTART_INTERVAL) {
-        console.error(`startServer: Restarting too quickly. Waiting ${MIN_RESTART_INTERVAL/1000} seconds before next attempt\n`);
+        console.error(`startServer: Restarting too quickly. Waiting ${MIN_RESTART_INTERVAL / 1000} seconds before next attempt\n`);
         process.exit(1);
     }
 
@@ -273,6 +276,59 @@ baileysApp.get('/health', (req, res) => {
     });
 });
 
+// Define the getServerStatus function
+function getServerStatus(req, res) {
+    const diskInfo = fs.statSync('/'); // Ensure diskInfo is defined here
+    const totalDisk = diskInfo.blocks * diskInfo.bsize;
+    const freeDisk = diskInfo.bfree * diskInfo.bsize;
+    const usedDisk = totalDisk - freeDisk;
+
+    // Convert bytes to human readable format
+    const formatBytes = (bytes) => {
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let i = 0;
+        while (bytes >= 1024 && i < units.length - 1) {
+            bytes /= 1024;
+            i++;
+        }
+        return `${bytes.toFixed(2)} ${units[i]}`;
+    };
+
+    const totalRAM = os.totalmem();
+    const freeRAM = os.freemem();
+    const usedRAM = totalRAM - freeRAM;
+    const cpuCount = os.cpus().length;
+    const cpuUsage = os.loadavg()[0]; // 1-minute load average
+    const cpuFree = cpuCount - cpuUsage;
+
+    console.log(`getServerStatus: System resources status:\n` +
+        `RAM - Total: ${formatBytes(totalRAM)}, Used: ${formatBytes(usedRAM)}, Free: ${formatBytes(freeRAM)}\n` +
+        `CPU - Total Cores: ${cpuCount}, Used: ${cpuUsage.toFixed(2)}, Free: ${cpuFree.toFixed(2)}\n` + 
+        `Disk - Total: ${formatBytes(totalDisk)}, Used: ${formatBytes(usedDisk)}, Free: ${formatBytes(freeDisk)}\n`);
+
+    res.send({
+        status: "success",
+        ram: {
+            total: formatBytes(totalRAM),
+            used: formatBytes(usedRAM), 
+            free: formatBytes(freeRAM)
+        },
+        cpu: {
+            total: cpuCount,
+            used: cpuUsage.toFixed(2),
+            free: cpuFree.toFixed(2)
+        },
+        disk: {
+            total: formatBytes(totalDisk),
+            used: formatBytes(usedDisk),
+            free: formatBytes(freeDisk)
+        }
+    });
+}
+
+// Set up the route
+baileysApp.get('/server-status', getServerStatus);
+
 // Add at the bottom of the file
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
@@ -321,60 +377,6 @@ async function gracefulShutdown() {
         process.exit(1);
     }
 }
-
-//server free ram and cpu, free HD space, pm2 log file size.
-function getServerStatus() {
-    let totalRAM = os.totalmem();
-    let freeRAM = os.freemem();
-    let usedRAM = totalRAM - freeRAM;
-
-    let cpuUsage = os.loadavg()[0]; // 1 minute load average
-    let cpuCount = os.cpus().length;
-    let cpuFree = cpuCount - cpuUsage;
-
-    // Get disk space info
-    let diskInfo = fs.statfsSync('/');
-    let totalDisk = diskInfo.blocks * diskInfo.bsize;
-    let freeDisk = diskInfo.bfree * diskInfo.bsize;
-    let usedDisk = totalDisk - freeDisk;
-
-    // Convert bytes to human readable format
-    let formatBytes = (bytes) => {
-        let units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        let i = 0;
-        while (bytes >= 1024 && i < units.length - 1) {
-            bytes /= 1024;
-            i++;
-        }
-        return `${bytes.toFixed(2)} ${units[i]}`;
-    };
-
-    console.log(`getServerStatus: System resources status:\n` +
-        `RAM - Total: ${formatBytes(totalRAM)}, Used: ${formatBytes(usedRAM)}, Free: ${formatBytes(freeRAM)}\n` +
-        `CPU - Total Cores: ${cpuCount}, Used: ${cpuUsage.toFixed(2)}, Free: ${cpuFree.toFixed(2)}\n` + 
-        `Disk - Total: ${formatBytes(totalDisk)}, Used: ${formatBytes(usedDisk)}, Free: ${formatBytes(freeDisk)}\n`);
-
-    res.send({
-        status: "success",
-        ram: {
-            total: formatBytes(totalRAM),
-            used: formatBytes(usedRAM), 
-            free: formatBytes(freeRAM)
-        },
-        cpu: {
-            total: cpuCount,
-            used: cpuUsage.toFixed(2),
-            free: cpuFree.toFixed(2)
-        },
-        disk: {
-            total: formatBytes(totalDisk),
-            used: formatBytes(usedDisk),
-            free: formatBytes(freeDisk)
-        }
-    });
-}
-getServerStatus();  
-
 
 // Middleware to log requests and validate JSON body
 baileysApp.use((req, res, next) => {
