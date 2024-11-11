@@ -8,6 +8,7 @@ let isStarting = false;
 let lastStartAttempt = 0;
 const MIN_RESTART_INTERVAL = 30000; // 30 seconds
 const baileysApp = express();
+const serverIP = "http://209.145.62.86:4001/"
 
 /* this is a Express server to send and receive whatsapp messages using baileys.*/
 
@@ -53,8 +54,7 @@ baileysApp.use(express.json());
 // Add static files middleware
 baileysApp.use(express.static(path.join(__dirname, 'public')));
 
-// Add route for dashboard
-baileysApp.get('/', (req, res) => {
+baileysApp.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
@@ -411,3 +411,5 @@ baileysApp.use((req, res, next) => {
 });
 
 startServer();
+
+console.log(`Server running at \n ${serverIP}/dashboard \n`);

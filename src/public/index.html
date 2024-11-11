@@ -7,17 +7,17 @@
     <link rel="stylesheet" href="styles.css">
     <!-- favicon https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Google_Messages_icon_%282022%29.svg/192px-Google_Messages_icon_%282022%29.svg.png-->
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Google_Messages_icon_%282022%29.svg/192px-Google_Messages_icon_%282022%29.svg.png" type="image/png">
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 </head>
 <body>
 <!-- add header, full width -->
-<header style="width: 100%; height: 60px;background-color: #15293d; padding: 20px;">
+<header class="header" style="width: 100%;">
     <h1>Zaploop Dashboard</h1>
 </header>
 
 
-    <div class="container">
-        <h1>Zaploop Dashboard</h1>
+    <div class="container" style="margin-top: 30px;">
         
         <div class="section">
             <h2>Create New Session</h2>
@@ -35,10 +35,12 @@
         <div class="section">
             <h2>Send Message</h2>
             <div class="form-group">
-                <select id="sessionSelect">
-                    <option value="">Select Session</option>
-                </select>
+                <!-- label -->
+                <label for="sessionSelect">Select Session</label>
+                <input type="text" id="sessionSelect" placeholder="Enter Session ID" value="luana">
+                <label for="jid">Enter phone number</label>
                 <input type="text" id="jid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
+                <label for="message">Enter message</label>
                 <textarea id="message" placeholder="Enter message" value="Hello!! world!!"></textarea>
                 <button onclick="sendMessage()">Send Message</button>
             </div>
@@ -77,8 +79,8 @@
     draw a health bar for each resource.
     -->
     <!-- refresh button to call again -->
-    <div id="serverStatus">´
-     <span id="refresh-server-status" onclick="getServerStatus()"> 🔄</span>
+    <div id="serverStatus">
+        <div class="row" >
         <div class="resource">
             <div class="resource-name">RAM</div>
             <div class="resource-bar" id="ramBar">
@@ -100,41 +102,13 @@
                 <div class="bar-text"></div>
             </div>
         </div>
-        <style>
-            #serverStatus {
-                padding: 20px;
-                background: #f5f5f5;
-                border-radius: 8px;
-            }
-            .resource {
-                margin: 10px 0;
-            }
-            .resource-name {
-                font-weight: bold;
-                margin-bottom: 5px;
-            }
-            .resource-bar {
-                height: 25px;
-                background: #ddd;
-                border-radius: 4px;
-                position: relative;
-                overflow: hidden;
-            }
-            .bar-fill {
-                height: 100%;
-                width: 0%;
-                background: #4CAF50;
-                transition: width 0.3s ease;
-            }
-            .bar-text {
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                color: #000;
-                font-size: 12px;
-            }
-        </style>
+    </div>
+    <span hoverable id="refresh-server-status" onclick="getServerStatus()" style="cursor: pointer;">🔄</span>
+
+</div>
+
+</div>
+
     </div>
     <script src="script.js"></script>
 </body>

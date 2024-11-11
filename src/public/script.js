@@ -38,14 +38,14 @@ async function refreshSessions() {
         });
     } catch (error) {
         console.error('Error fetching sessions:', error);
-        alert('Failed to fetch sessions');
+        //toastr.error('Failed to fetch sessions');
     }
 }
 
 async function createSession() {
     let sessionId = document.getElementById('sessionId').value.trim();
     if (!sessionId) {
-        alert('Please enter a session ID');
+        toastr.error('Please enter a session ID');
         return;
     }
 
@@ -60,12 +60,12 @@ async function createSession() {
 
         if (!response.ok) throw new Error('Failed to create session');
         
-        alert('Session created successfully! Check the terminal for QR code.');
+        toastr.success('Session created successfully! Check the terminal for QR code.');
         document.getElementById('sessionId').value = '';
         refreshSessions();
     } catch (error) {
         console.error('Error creating session:', error);
-        alert('Failed to create session');
+        toastr.error('Failed to create session');
     }
 }
 
@@ -75,7 +75,7 @@ async function sendMessage() {
     let message = document.getElementById('message').value.trim();
 
     if (!sessionId || !jid || !message) {
-        alert('Please fill in all fields');
+        toastr.error('Please fill in all fields');
         return;
     }
 
@@ -92,12 +92,12 @@ async function sendMessage() {
 
         if (!response.ok) throw new Error('Failed to send message');
 
-        alert('Message sent successfully!');
+        toastr.success('Message sent successfully!');
         document.getElementById('jid').value = '';
         document.getElementById('message').value = '';
     } catch (error) {
         console.error(`sendMessage: Error sending message: ${error}\n`);
-        alert('Failed to send message');
+        toastr.error('Failed to send message');
     }
 }
 
@@ -121,12 +121,12 @@ async function sendImage() {
 
         if (!response.ok) throw new Error('Failed to send image');
 
-        alert('Image sent successfully!');
+        toastr.success('Image sent successfully!');
       //  document.getElementById('imageUrl').value = '';
       //  document.getElementById('caption').value = '';
     } catch (error) {
         console.error(`sendImage: Error sending image: ${error}\n`);
-        alert('Failed to send image');
+        toastr.error('Failed to send image');
     }
 }
 
@@ -150,6 +150,32 @@ async function updateSessionStatus(sessionId) {
     }
 }
 
+
+async function getServerStatus() {
+    try {
+        let response = await fetch('/server-status');
+        let data = await response.json();
+
+        updateResourceBar('ramBar', data.ram.used, data.ram.total);
+        updateResourceBar('cpuBar', data.cpu.used, data.cpu.total);
+        updateResourceBar('diskBar', data.disk.used, data.disk.total);
+    } catch (error) {
+        console.error('Error fetching server status:', error);
+        toastr.error('Failed to fetch server status');
+    }
+}
+
+function updateResourceBar(barId, used, total) {
+    let bar = document.getElementById(barId);
+    let fill = bar.querySelector('.bar-fill');
+    let text = bar.querySelector('.bar-text');
+
+    let percentage = (parseFloat(used) / parseFloat(total)) * 100;
+    fill.style.width = `${percentage}%`;
+    text.textContent = `${used} / ${total}`;
+}
+
+
 // Add session info viewer
 async function viewSessionInfo(sessionId) {
     console.log(`viewSessionInfo: sessionId: ${sessionId}\n`);
@@ -168,22 +194,22 @@ async function viewSessionInfo(sessionId) {
         modal.className = 'modal';
         modal.innerHTML = `
             <div class="modal-content">
-                <h3>Session Info: ${sessionId}</h3>
-                <div class="info-tabs">
-                    <button onclick="showTab('contacts')">Contacts (${Object.keys(data.contacts).length})</button>
-                    <button onclick="showTab('chats')">Chats (${data.chats.length})</button>
-                    <button onclick="showTab('messages')">Messages (${data.messages.length})</button>
-                </div>
-                <div class="info-content">
-                    <pre>${JSON.stringify(data.info, null, 2)}</pre>
-                </div>
-                <button onclick="this.parentElement.parentElement.remove()">Close</button>
+            <h3>Session Info: ${sessionId}</h3>
+            <div class="info-tabs">
+                <button onclick="showTab('contacts')">Contacts (${Object.keys(data.contacts).length})</button>
+                <button onclick="showTab('chats')">Chats (${data.chats.length})</button>
+                <button onclick="showTab('messages')">Messages (${data.messages.length})</button>
+            </div>
+            <div class="info-content">
+                <pre>${JSON.stringify(data.info, null, 2)}</pre>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()">Close</button>
             </div>
         `;
         document.body.appendChild(modal);
     } catch (error) {
         console.error(`viewSessionInfo: Error fetching session info: ${error}\n`);
-        alert('Failed to fetch session info');
+        toastr.error('Failed to fetch session info');
     }
 }
 
