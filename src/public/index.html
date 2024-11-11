@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baileys Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Baileys Dashboard</h1>
+        
+        <div class="section">
+            <h2>Create New Session</h2>
+            <div class="form-group">
+                <input type="text" id="sessionId" placeholder="Enter Session ID">
+                <button onclick="createSession()">Create Session</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Active Sessions</h2>
+            <div id="sessionsList"></div>
+        </div>
+
+        <div class="section">
+            <h2>Send Message</h2>
+            <div class="form-group">
+                <select id="sessionSelect">
+                    <option value="">Select Session</option>
+                </select>
+                <input type="text" id="jid" placeholder="Enter JID (phone@s.whatsapp.net)">
+                <textarea id="message" placeholder="Enter message"></textarea>
+                <button onclick="sendMessage()">Send Message</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html> 
