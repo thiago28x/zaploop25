@@ -33,6 +33,11 @@ async function refreshSessions() {
             option.textContent = sessionId;
             sessionSelect.appendChild(option);
 
+            /* if not empty, change placeholder to empty */
+            if (sessionId) {
+                document.getElementById('sessionListPlaceholder').innerHTML = '';
+            }
+
             // Update status immediately
             updateSessionStatus(sessionId);
         });
@@ -44,13 +49,15 @@ async function refreshSessions() {
 
 async function createSession() {
     let sessionId = document.getElementById('sessionId').value.trim();
+    console.log(`createSession: sessionId: ${sessionId}\n`);
+
     if (!sessionId) {
         toastr.error('Please enter a session ID');
         return;
     }
 
     try {
-        let response = await fetch('/create-connection', {
+        let response = await fetch('/start', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -60,11 +67,38 @@ async function createSession() {
 
         if (!response.ok) throw new Error('Failed to create session');
         
-        toastr.success('Session created successfully! Check the terminal for QR code.');
+        let data = await response.json();
+        
+        // Create modal for QR code
+        let modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Scan QR Code for Session: ${sessionId}</h3>
+                <div id="qrcode-${sessionId}"></div>
+                <p>Scan this QR code with WhatsApp to connect</p>
+                <button onclick="this.parentElement.parentElement.remove()">Close</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Generate QR code if available
+        if (data.qrCode) {
+            // Using qrcode.js library
+            new QRCode(document.getElementById(`qrcode-${sessionId}`), {
+                text: data.qrCode,
+                width: 256,
+                height: 256
+            });
+            toastr.success('Session created. Scan the QR code to connect.');
+        } else {
+            toastr.warning('Session created but no QR code was generated.');
+        }
+
         document.getElementById('sessionId').value = '';
-        refreshSessions();
+       // refreshSessions();
     } catch (error) {
-        console.error('Error creating session:', error);
+        console.error(`createSession: Error creating session: ${error}\n`);
         toastr.error('Failed to create session');
     }
 }
@@ -212,7 +246,6 @@ async function viewSessionInfo(sessionId) {
         toastr.error('Failed to fetch session info');
     }
 }
-
 // Refresh sessions when page loads
 document.addEventListener('DOMContentLoaded', refreshSessions);
 

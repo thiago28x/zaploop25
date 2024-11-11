@@ -58,28 +58,57 @@ baileysApp.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-baileysApp.post("/create-connection", async (req, res) => {
+//start a new session
+baileysApp.post("/start", async (req, res) => {
   let { sessionId } = req.body;
   console.log(`/create-connection: Creating session with ID: ${sessionId}\n`);
   
   try {
     let client = await startBaileysConnection(sessionId);
-    res.send({ status: "New connection created", sessionId });
+    
+    // Get QR code from the connection
+    let qrCode = null;
+    if (client.ev) {
+        await new Promise((resolve) => {
+            let timeout = setTimeout(() => resolve(), 10000); // 10 second timeout
+            
+            client.ev.on('connection.update', ({ qr }) => {
+                if (qr) {
+                    qrCode = qr;
+                    clearTimeout(timeout);
+                    resolve();
+                }
+            });
+        });
+    }
+    
+    res.send({ 
+        status: "New connection created", 
+        sessionId,
+        qrCode: qrCode // Send QR code in response if available
+    });
   } catch (error) {
     console.error(`/create-connection: Error creating session: ${error}\n`);
     res.status(500).send({ error: "Failed to create connection" });
   }
 });
 
+//route get session connection
+baileysApp.get("/session/:sessionId", async (req, res) => {
+    let { sessionId } = req.params;
+    let client = getSession(sessionId);
+    res.send({ status: "success", session: client });
+});
+
 baileysApp.post("/send-message", async (req, res) => {
   let { sessionId, jid, message } = req.body;
   console.log(`/send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
-  try {
-    let client = getSession(sessionId);
-    if (!client) {
-      throw new Error("Session not found");
-    }
+  let client = getSession(sessionId);
+  if (!client) {
+    console.log(`/send-message: No session found for sessionId: \n${sessionId}\n`);
+    return res.status(404).send({ error: "no session found" });
+  }
 
     // Format JID if needed
     if (!jid.includes('@')) {
@@ -412,4 +441,4 @@ baileysApp.use((req, res, next) => {
 
 startServer();
 
-console.log(`Server running at \n ${serverIP}/dashboard \n`);
+console.log(`Server running at \n ${serverIP}dashboard \n`);

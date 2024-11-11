@@ -75,7 +75,15 @@ async function startBaileysConnection(sessionId = 'default') {
                     return {
                         conversation: 'Message not found in store'
                     };
-                }
+                },
+                // Add QR code generation callback
+                generateHighQualityQRCode: true
+            });
+
+            // Add QR code event handler
+            let qrCode = null;
+            sock.ev.on('connection.update', ({ qr }) => {
+                if (qr) qrCode = qr;
             });
 
             // Add message handling
