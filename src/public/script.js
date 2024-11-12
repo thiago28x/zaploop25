@@ -82,6 +82,16 @@ async function createSession() {
         `;
         document.body.appendChild(modal);
 
+/* 
+sample qr code data
+{
+    "status": "New connection created",
+    "sessionId": "luana",
+    "qrCode": "2@isXQMr9qaNDhpdwWZFLM/PIY59/LtWY9ZKT3qI3I7eHp0ClGOhruQeHd+O6D5NWsVG8557IZQyFBHzL7zUm1HXoxAlTTgNnpKTk=,DokWTivKJqEJchkG36o/Pv+gkocM/FHJQWO694AWxnA=,5Uu0/qKzBRbEXpZhnQqSMXAFK0ipZwNfGOo3S7Hqfxg=,GAFNb8CcgXqKaVYO8sc8WlAdFLXC0XF0qEgXF4QUe7Q="
+}
+
+*/
+
         // Generate QR code if available
         if (data.qrCode) {
             // Using qrcode.js library

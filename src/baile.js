@@ -18,11 +18,11 @@ const serverIP = "http://209.145.62.86:4001/"
 // Restore sessions before starting the server
 async function startServer() {
     const currentTime = Date.now();
-    console.log(`startServer: Initializing server\n`);
+    console.log(`\n 🍪 BAILEYS SERVER:  \nstartServer: Initializing server\n`);
     
     // Prevent multiple simultaneous start attempts
     if (isStarting) {
-        console.log(`startServer: Server is already starting\n`);
+        console.log(`\n 🍪 BAILEYS SERVER:  \nstartServer: Server is already starting\n`);
         process.exit(1);
     }
 
@@ -40,7 +40,7 @@ async function startServer() {
         
         baileysApp.listen(4001, () => {
             isStarting = false;
-            console.log(`startServer: Baileys service running on port 4001\n`);
+            console.log(`\n 🍪 BAILEYS SERVER:  \nstartServer: Baileys service running on port 4001\n`);
         });
     } catch (error) {
         console.error(`startServer: Error starting server: ${error}\n`);
@@ -61,7 +61,7 @@ baileysApp.get('/dashboard', (req, res) => {
 //start a new session
 baileysApp.post("/start", async (req, res) => {
   let { sessionId } = req.body;
-  console.log(`/create-connection: Creating session with ID: ${sessionId}\n`);
+  console.log(`\n 🍪 BAILEYS SERVER:  \n/create-connection: Creating session with ID: ${sessionId}\n`);
   
   try {
     let client = await startBaileysConnection(sessionId);
@@ -102,12 +102,12 @@ baileysApp.get("/session/:sessionId", async (req, res) => {
 
 baileysApp.post("/send-message", async (req, res) => {
   let { sessionId, jid, message } = req.body;
-  console.log(`/send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
+  console.log(`\n💫BAILEYS SERVER: /send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
   try {
     let client = getSession(sessionId);
     if (!client) {
-      console.log(`/send-message: No session found for sessionId: \n${sessionId}\n`);
+      console.log(`\n 🍪 BAILEYS SERVER:  \n/send-message: No session found for sessionId: \n${sessionId}\n`);
       return res.status(404).send({ error: "no session found" });
     }
 
@@ -122,14 +122,14 @@ baileysApp.post("/send-message", async (req, res) => {
       throw new Error("Invalid JID format");
     }
 
-    console.log(`/send-message: Sending message to formatted JID: ${jid}\n`);
+    //RANDOM DELAY
+    const randomDelay = Math.floor(Math.random() * 5000) + 1000; // Random delay between 1 and 5 seconds
+    await new Promise(resolve => setTimeout(resolve, randomDelay));
 
     // Update presence to 'composing'
-    console.log(`send-message: Calling sendPresenceUpdate with status: 'composing', jid: ${jid}\n`);
     await client.sendPresenceUpdate('composing', jid);
-    await new Promise(resolve => setTimeout(resolve, 2500)); // Wait for 2.5 seconds
+    await new Promise(resolve => setTimeout(resolve, randomDelay)); // Wait for 2.5 seconds
 
-    console.log(`send-message: Calling sendMessage with jid: ${jid}, message: ${message}\n`);
     await client.sendMessage(jid, { text: message });
     res.send({ status: "Message sent" });
   } catch (error) {
@@ -142,7 +142,7 @@ baileysApp.post("/send-message", async (req, res) => {
 });
 
 baileysApp.get("/list-sessions", (req, res) => {
-    console.log(`/list-sessions: Retrieving all active sessions\n`);
+    console.log(`\n 🍪 BAILEYS SERVER:  \n/list-sessions: Retrieving all active sessions\n`);
     
     try {
         let activeSessions = Array.from(sessions.keys());
@@ -159,7 +159,7 @@ baileysApp.get("/list-sessions", (req, res) => {
 
 baileysApp.delete("/session/:sessionId", (req, res) => {
     let { sessionId } = req.params;
-    console.log(`/session/${sessionId}: Deleting session\n`);
+    console.log(`\n 🍪 BAILEYS SERVER:  \n/session/${sessionId}: Deleting session\n`);
     
     try {
         let client = getSession(sessionId);
@@ -187,7 +187,7 @@ baileysApp.delete("/session/:sessionId", (req, res) => {
 
 baileysApp.get("/session-status/:sessionId", (req, res) => {
     let { sessionId } = req.params;
-    console.log(`/session-status/${sessionId}: Fetching status\n`);
+    console.log(`\n 🍪 BAILEYS SERVER:  \n/session-status/${sessionId}: Fetching status\n`);
     
     try {
         let client = getSession(sessionId);
@@ -207,7 +207,7 @@ baileysApp.get("/session-status/:sessionId", (req, res) => {
 // Get session info (contacts, chats, etc.)
 baileysApp.get("/session-info/:sessionId", async (req, res) => {
     let { sessionId } = req.params;
-    console.log(`/session-info/${sessionId}: Fetching info\n`);
+    console.log(`\n 🍪 BAILEYS SERVER:  \n/session-info/${sessionId}: Fetching info\n`);
     
     try {
         let client = getSession(sessionId);
@@ -223,9 +223,9 @@ baileysApp.get("/session-info/:sessionId", async (req, res) => {
                     chats: await client.store.chats.all(),
                     messages: await client.store.messages.all()
                 };
-                console.log(`Fetched contacts: ${Object.keys(store.contacts).length}\n`);
-                console.log(`Fetched chats: ${store.chats.length}\n`);
-                console.log(`Fetched messages: ${store.messages.length}\n`);
+                console.log(`\n 🍪 BAILEYS SERVER:  \nFetched contacts: ${Object.keys(store.contacts).length}\n`);
+                console.log(`\n 🍪 BAILEYS SERVER:  \nFetched chats: ${store.chats.length}\n`);
+                console.log(`\n 🍪 BAILEYS SERVER:  \nFetched messages: ${store.messages.length}\n`);
             } catch (error) {
                 console.error(`Error fetching store data: ${error}\n`);
             }
@@ -248,7 +248,7 @@ baileysApp.get("/session-info/:sessionId", async (req, res) => {
 
 baileysApp.post("/send-image", async (req, res) => {
     let { sessionId, jid, imageUrl, caption } = req.body;
-    console.log(`/send-image: Request params - sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}\n`);
+    console.log(`\n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER: /send-image: Request params - sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}\n`);
     
     try {
         let client = getSession(sessionId);
@@ -266,7 +266,7 @@ baileysApp.post("/send-image", async (req, res) => {
             throw new Error("Invalid JID format");
         }
 
-        console.log(`/send-image: Sending image to formatted JID: ${jid}\n`);
+        console.log(`\n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER:/send-image: Sending image to formatted JID: ${jid}\n`);
         
         await client.sendMessage(jid, {
             image: { url: imageUrl || 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg' },
@@ -299,7 +299,7 @@ baileysApp.use((req, res, next) => {
 });
 
 baileysApp.get('/health', (req, res) => {
-    console.log(`/health: Checking service health\n`);
+    console.log(`\n 🍪 BAILEYS SERVER:  \n/health: Checking service health\n`);
     res.send({
         status: 'healthy',
         uptime: process.uptime(),
@@ -333,7 +333,7 @@ function getServerStatus(req, res) {
     const cpuUsage = os.loadavg()[0]; // 1-minute load average
     const cpuFree = cpuCount - cpuUsage;
 
-    console.log(`getServerStatus: System resources status:\n` +
+    console.log(`\n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER: getServerStatus: System resources status:\n` +
         `RAM - Total: ${formatBytes(totalRAM)}, Used: ${formatBytes(usedRAM)}, Free: ${formatBytes(freeRAM)}\n` +
         `CPU - Total Cores: ${cpuCount}, Used: ${cpuUsage.toFixed(2)}, Free: ${cpuFree.toFixed(2)}\n` + 
         `Disk - Total: ${formatBytes(totalDisk)}, Used: ${formatBytes(usedDisk)}, Free: ${formatBytes(freeDisk)}\n`);
@@ -369,10 +369,10 @@ async function gracefulShutdown() {
     let isShuttingDown = false;  // Prevent multiple shutdown attempts
     let shutdownTimeout = 10000; // 10 seconds timeout
     
-    console.log(`gracefulShutdown: Received shutdown signal\n`);
+    console.log(`\n 🍪 BAILEYS SERVER:  \n\n 🍪 BAILEYS SERVER:  \n gracefulShutdown: Received shutdown signal\n`);
     
     if (isShuttingDown) {
-        console.log(`gracefulShutdown: Shutdown already in progress\n`);
+        console.log(`\n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Shutdown already in progress\n`);
         return;
     }
     
@@ -387,13 +387,13 @@ async function gracefulShutdown() {
         
         // Close the Express server first
         if (baileysApp.server) {
-            console.log(`gracefulShutdown: Closing Express server\n`);
+            console.log(`\n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Closing Express server\n`);
             await new Promise(resolve => baileysApp.server.close(resolve));
         }
         
         // Close all WhatsApp connections gracefully
         for (let [sessionId, client] of sessions) {
-            console.log(`gracefulShutdown: Closing session ${sessionId}\n`);
+            console.log(`\n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Closing session ${sessionId}\n`);
             await client.end();
         }
         
@@ -402,7 +402,7 @@ async function gracefulShutdown() {
         connectionStates.clear();
         
         clearTimeout(forceShutdown);
-        console.log(`gracefulShutdown: Shutdown completed successfully\n`);
+        console.log(`\n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Shutdown completed successfully\n`);
         process.exit(0);
     } catch (error) {
         console.error(`gracefulShutdown: Error during shutdown: ${error}\n`);
@@ -412,7 +412,7 @@ async function gracefulShutdown() {
 
 // Middleware to log requests and validate JSON body
 baileysApp.use((req, res, next) => {
-    console.log(`Request Logger: ${req.method} ${req.url}\n`);
+    console.log(`\n 🍪 BAILEYS SERVER:  \nRequest Logger: ${req.method} ${req.url}\n`);
 
     // Check if the request has a JSON body
     if (!req.is('application/json')) {

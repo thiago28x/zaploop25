@@ -94,7 +94,7 @@ async function startBaileysConnection(sessionId = 'default') {
 
                 let webhookUrl = process.env.WEBHOOK_URL;
                 
-                console.log(`🐸 Webhook: New message in ${sessionId}, type: ${type}\n`);
+                console.log(`\n 🐸 BAILEYS SERVER: Webhook: New message in ${sessionId}, type: ${type}\n text: ${messages.text}`);
             //    console.log(`startBaileysConnection: Attempting to forward ${messages.length} messages to webhook\n`);
                 
                 for (let message of messages) {
@@ -233,9 +233,6 @@ function validateSession(sessionId) {
 
 // Add function to get existing session
 function getSession(sessionId = 'default') {
-    console.log(`getSession: Retrieving session ${sessionId}\n`);
-    //log sessions
-    console.log(sessions);
     return sessions.get(sessionId);
 }
 
