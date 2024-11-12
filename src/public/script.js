@@ -1,3 +1,24 @@
+
+async function deleteSession(sessionId) {
+    console.log(`deleteSession: sessionId: ${sessionId}\n`);
+    
+    try {
+        let response = await fetch(`/delete-session/${sessionId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Failed to delete session');
+
+        toastr.success('Session deleted successfully');
+        refreshSessions();
+    } catch (error) {
+        console.error(`deleteSession: Error deleting session: ${error}\n`);
+        toastr.error('Failed to delete session');
+    }
+}
+
+//DO NOT DELETE REST OF THE CODE
+
 // Fetch and display active sessions
 async function refreshSessions() {
     try {
