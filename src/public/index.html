@@ -25,6 +25,13 @@
                 <input type="text" id="sessionId" placeholder="Enter Session ID">
                 <button onclick="createSession()">Create Session</button>
             </div>
+            <!-- Add QR code container -->
+            <div class="qr-container">
+                <div id="qrcode-placeholder">
+                    <p>QR code will appear here</p>
+                </div>
+                <div id="qrcode"></div>
+            </div>
         </div>
 
         <div class="section">
@@ -63,6 +70,29 @@
             </div>
         </div>
     </div>
+
+
+<!-- 
+    /* 
+sample qr code data
+{
+    "status": "New connection created",
+    "sessionId": "luana",
+    "qrCode": "2@isXQMr9qaNDhpdwWZFLM/PIY59/LtWY9ZKT3qI3I7eHp0ClGOhruQeHd+O6D5NWsVG8557IZQyFBHzL7zUm1HXoxAlTTgNnpKTk=,DokWTivKJqEJchkG36o/Pv+gkocM/FHJQWO694AWxnA=,5Uu0/qKzBRbEXpZhnQqSMXAFK0ipZwNfGOo3S7Hqfxg=,GAFNb8CcgXqKaVYO8sc8WlAdFLXC0XF0qEgXF4QUe7Q="
+}
+
+*/
+        // Generate QR code if available
+        if (data.qrCode) {
+            // Using qrcode.js library
+            new QRCode(document.getElementById(`qrcode-${sessionId}`), {
+                text: data.qrCode,
+                width: 256,
+                height: 256
+            }); -->
+
+
+
     <!-- server status
        res.send({
         status: "success",

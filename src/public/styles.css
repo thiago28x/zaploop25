@@ -193,3 +193,20 @@ button:hover {
     color: #000;
     font-size: 12px;
 }
+
+.qr-container {
+    margin-top: 20px;
+    text-align: center;
+}
+
+#qrcode-placeholder {
+    color: #666;
+    padding: 10px;
+}
+
+#qrcode {
+    display: inline-block;
+    padding: 10px;
+    background: white;
+    border-radius: 4px;
+}

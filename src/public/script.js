@@ -91,7 +91,6 @@ sample qr code data
 }
 
 */
-
         // Generate QR code if available
         if (data.qrCode) {
             // Using qrcode.js library
