@@ -396,15 +396,50 @@ function handleStoreError(error, operation) {
     return null;
 }
 
-// Use it in the store operations
-try {
-    storeData = {
-        contacts: await store.contacts.all().catch(e => handleStoreError(e, 'contacts fetch')),
-        chats: await store.chats.all().catch(e => handleStoreError(e, 'chats fetch')),
-        messages: await store.messages.all().catch(e => handleStoreError(e, 'messages fetch'))
+// Remove the try-catch block at the bottom and create a new function
+async function getStoreData(store, sessionId) {
+    let storeData = {
+        contacts: {},
+        chats: [],
+        messages: []
     };
-} catch (error) {
-    handleStoreError(error, 'general store operation');
+
+    try {
+        console.log(`getStoreData: Fetching store data for session ${sessionId}\n`);
+        
+        // Fetch contacts
+        try {
+            storeData.contacts = await store.contacts.all();
+            console.log(`getStoreData: Retrieved ${Object.keys(storeData.contacts).length} contacts\n`);
+        } catch (error) {
+            console.error(`getStoreData: Error fetching contacts: ${error}\n`);
+            handleStoreError(error, 'contacts fetch');
+        }
+
+        // Fetch chats
+        try {
+            storeData.chats = await store.chats.all();
+            console.log(`getStoreData: Retrieved ${storeData.chats.length} chats\n`);
+        } catch (error) {
+            console.error(`getStoreData: Error fetching chats: ${error}\n`);
+            handleStoreError(error, 'chats fetch');
+        }
+
+        // Fetch messages
+        try {
+            storeData.messages = await store.messages.all();
+            console.log(`getStoreData: Retrieved ${storeData.messages.length} messages\n`);
+        } catch (error) {
+            console.error(`getStoreData: Error fetching messages: ${error}\n`);
+            handleStoreError(error, 'messages fetch');
+        }
+
+        return storeData;
+    } catch (error) {
+        console.error(`getStoreData: General store error: ${error}\n`);
+        handleStoreError(error, 'general store operation');
+        return storeData;
+    }
 }
 
 // Update exports
@@ -417,5 +452,6 @@ module.exports = {
     validateSession,
     isSessionActive,
     cleanupSession,
-    fetchChatHistory
+    fetchChatHistory,
+    getStoreData  // Add the new function to exports
 };
