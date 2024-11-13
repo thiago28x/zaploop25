@@ -460,6 +460,120 @@ baileysApp.use((req, res, next) => {
     next();
 });
 
+// Add new endpoints for specific data retrieval
+baileysApp.get("/session-chats/:sessionId", async (req, res) => {
+    let { sessionId } = req.params;
+    console.log(`\n 🍪 BAILEYS SERVER: /session-chats/${sessionId}: Fetching chats\n`);
+    
+    try {
+        let session = sessions.get(sessionId);
+        if (!session?.store) {
+            throw new Error("Session or store not found");
+        }
+
+        let chats = await session.store.chats.all();
+        console.log(`/session-chats: Retrieved ${chats.length} chats for ${sessionId}\n`);
+
+        res.send({
+            status: "success",
+            sessionId,
+            chats: chats,
+            count: chats.length
+        });
+    } catch (error) {
+        console.error(`/session-chats: Error: ${error}\n`);
+        res.status(500).send({ error: "Failed to fetch chats" });
+    }
+});
+
+baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
+    let { sessionId } = req.params;
+    console.log(`\n 🍪 BAILEYS SERVER: /session-contacts/${sessionId}: Fetching contacts\n`);
+    
+    try {
+        let session = sessions.get(sessionId);
+        if (!session?.store) {
+            throw new Error("Session or store not found");
+        }
+
+        let contacts = await session.store.contacts.all();
+        console.log(`/session-contacts: Retrieved ${Object.keys(contacts).length} contacts for ${sessionId}\n`);
+
+        res.send({
+            status: "success",
+            sessionId,
+            contacts: contacts,
+            count: Object.keys(contacts).length
+        });
+    } catch (error) {
+        console.error(`/session-contacts: Error: ${error}\n`);
+        res.status(500).send({ error: "Failed to fetch contacts" });
+    }
+});
+
+// Add endpoints using direct socket methods
+baileysApp.get("/session-chats-direct/:sessionId", async (req, res) => {
+    let { sessionId } = req.params;
+    console.log(`\n 🍪 BAILEYS SERVER: /session-chats-direct/${sessionId}: Fetching chats directly\n`);
+    
+    try {
+        let session = sessions.get(sessionId);
+        if (!session?.sock) {
+            throw new Error("Session not found");
+        }
+
+        let chats = await session.sock.fetchChats();
+        console.log(`/session-chats-direct: Retrieved ${chats.length} chats for ${sessionId}\n`);
+
+        res.send({
+            status: "success",
+            sessionId,
+            chats: chats.map(chat => ({
+                id: chat.id,
+                name: chat.name,
+                unreadCount: chat.unreadCount,
+                timestamp: chat.timestamp,
+                isGroup: chat.id.endsWith('@g.us')
+            })),
+            count: chats.length
+        });
+    } catch (error) {
+        console.error(`/session-chats-direct: Error: ${error}\n`);
+        res.status(500).send({ error: "Failed to fetch chats directly" });
+    }
+});
+
+baileysApp.get("/session-contacts-direct/:sessionId", async (req, res) => {
+    let { sessionId } = req.params;
+    console.log(`\n 🍪 BAILEYS SERVER: /session-contacts-direct/${sessionId}: Fetching contacts directly\n`);
+    
+    try {
+        let session = sessions.get(sessionId);
+        if (!session?.sock) {
+            throw new Error("Session not found");
+        }
+
+        let contacts = await session.sock.getContacts();
+        console.log(`/session-contacts-direct: Retrieved ${Object.keys(contacts).length} contacts for ${sessionId}\n`);
+
+        res.send({
+            status: "success",
+            sessionId,
+            contacts: Object.entries(contacts).map(([id, contact]) => ({
+                id,
+                name: contact.name || contact.notify || id.split('@')[0],
+                number: id.split('@')[0],
+                isGroup: id.endsWith('@g.us'),
+                isBusiness: contact.isBusiness || false
+            })),
+            count: Object.keys(contacts).length
+        });
+    } catch (error) {
+        console.error(`/session-contacts-direct: Error: ${error}\n`);
+        res.status(500).send({ error: "Failed to fetch contacts directly" });
+    }
+});
+
 startServer();
 
 console.log(`Server running at \n ${serverIP}dashboard \n`);

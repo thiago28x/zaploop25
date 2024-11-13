@@ -52,6 +52,20 @@ async function restoreSessions() {
     }
 }
 
+// Add this helper function at the top with other functions
+function ensureSessionDir(sessionDir) {
+    try {
+        if (!fs.existsSync(sessionDir)) {
+            console.log(`ensureSessionDir: Creating session directory at ${sessionDir}\n`);
+            fs.mkdirSync(sessionDir, { recursive: true });
+        }
+        return true;
+    } catch (error) {
+        console.error(`ensureSessionDir: Error creating directory: ${error}\n`);
+        return false;
+    }
+}
+
 async function startBaileysConnection(sessionId = 'default') {
     let sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
     // Initialize store with config
@@ -275,27 +289,55 @@ async function startBaileysConnection(sessionId = 'default') {
 
             // Add store sync event handler
             sock.ev.on('chats.set', () => {
-                console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing chats\n`);
-                store.writeToFile(path.join(sessionDir, 'store.json'));
+                try {
+                    if (ensureSessionDir(sessionDir)) {
+                        console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing chats\n`);
+                        store.writeToFile(path.join(sessionDir, 'store.json'));
+                    }
+                } catch (error) {
+                    console.error(`startBaileysConnection: Error writing chats to store: ${error}\n`);
+                }
             });
 
             // Add contacts sync handler
             sock.ev.on('contacts.set', () => {
-                console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing contacts\n`);
-                store.writeToFile(path.join(sessionDir, 'store.json'));
+                try {
+                    if (ensureSessionDir(sessionDir)) {
+                        console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing contacts\n`);
+                        store.writeToFile(path.join(sessionDir, 'store.json'));
+                    }
+                } catch (error) {
+                    console.error(`startBaileysConnection: Error writing contacts to store: ${error}\n`);
+                }
             });
 
             // Add message history sync handler
             sock.ev.on('messaging-history.set', () => {
-                console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing message history\n`);
-                store.writeToFile(path.join(sessionDir, 'store.json'));
+                try {
+                    if (ensureSessionDir(sessionDir)) {
+                        console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing message history\n`);
+                        store.writeToFile(path.join(sessionDir, 'store.json'));
+                    }
+                } catch (error) {
+                    console.error(`startBaileysConnection: Error writing message history to store: ${error}\n`);
+                }
             });
 
             // Periodically write store to prevent data loss
             const writeInterval = setInterval(() => {
                 if (sessions.has(sessionId)) {
-                    store.writeToFile(path.join(sessionDir, 'store.json'));
-                    console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Store auto-saved\n`);
+                    try {
+                        // Check if session directory exists before writing
+                        if (ensureSessionDir(sessionDir)) {
+                            const storeFile = path.join(sessionDir, 'store.json');
+                            store.writeToFile(storeFile);
+                            console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Store auto-saved\n`);
+                        } else {
+                            console.error(`startBaileysConnection: Cannot write store file - directory not accessible\n`);
+                        }
+                    } catch (error) {
+                        console.error(`startBaileysConnection: Error writing store file: ${error}\n`);
+                    }
                 } else {
                     clearInterval(writeInterval);
                 }

@@ -281,3 +281,141 @@ document.addEventListener('DOMContentLoaded', refreshSessions);
 
 // Refresh sessions every 30 seconds
 //setInterval(refreshSessions, 30000); 
+
+async function getSessionChats(sessionId) {
+    try {
+        let response = await fetch(`/session-chats-direct/${sessionId}`);
+        let data = await response.json();
+        
+        if (data.status === "success") {
+            console.log(`Retrieved ${data.count} chats`);
+            return data.chats;
+        }
+    } catch (error) {
+        console.error(`Error fetching chats: ${error}\n`);
+        toastr.error('Failed to fetch chats');
+    }
+    return [];
+}
+
+async function getSessionContacts(sessionId) {
+    try {
+        let response = await fetch(`/session-contacts-direct/${sessionId}`);
+        let data = await response.json();
+        
+        if (data.status === "success") {
+            console.log(`Retrieved ${data.count} contacts`);
+            return data.contacts;
+        }
+    } catch (error) {
+        console.error(`Error fetching contacts: ${error}\n`);
+        toastr.error('Failed to fetch contacts');
+    }
+    return [];
+}
+
+async function updateSessionSelect() {
+    let select = document.getElementById('detailsSessionSelect');
+    let response = await fetch('/list-sessions');
+    let data = await response.json();
+    
+    select.innerHTML = '<option value="">Select a session</option>';
+    
+    if (data.sessions) {
+        data.sessions.forEach(sessionId => {
+            select.innerHTML += `<option value="${sessionId}">${sessionId}</option>`;
+        });
+    }
+}
+
+function showTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    document.getElementById(`${tabName}Tab`).classList.add('active');
+    document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
+    
+    // Load data if needed
+    let sessionId = document.getElementById('detailsSessionSelect').value;
+    if (sessionId) {
+        if (tabName === 'chats') {
+            loadChats(sessionId);
+        } else if (tabName === 'contacts') {
+            loadContacts(sessionId);
+        }
+    }
+}
+
+async function loadChats(sessionId) {
+    let chatsList = document.getElementById('chatsList');
+    let placeholder = document.getElementById('chatsPlaceholder');
+    
+    try {
+        let chats = await getSessionChats(sessionId);
+        
+        chatsList.innerHTML = '';
+        
+        if (chats.length > 0) {
+            placeholder.style.display = 'none';
+            chats.forEach(chat => {
+                chatsList.innerHTML += `
+                    <div class="chat-item">
+                        <i class="ph ${chat.isGroup ? 'ph-users' : 'ph-user'}"></i>
+                        <div class="item-info">
+                            <div class="item-name">${chat.name || chat.id}</div>
+                            <div class="item-details">
+                                ${chat.isGroup ? 'Group' : 'Private Chat'} • 
+                                ${chat.unreadCount ? `${chat.unreadCount} unread` : 'No unread messages'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            placeholder.style.display = 'block';
+        }
+    } catch (error) {
+        console.error(`loadChats: Error: ${error}\n`);
+        toastr.error('Failed to load chats');
+    }
+}
+
+async function loadContacts(sessionId) {
+    let contactsList = document.getElementById('contactsList');
+    let placeholder = document.getElementById('contactsPlaceholder');
+    
+    try {
+        let contacts = await getSessionContacts(sessionId);
+        
+        contactsList.innerHTML = '';
+        
+        if (contacts.length > 0) {
+            placeholder.style.display = 'none';
+            contacts.forEach(contact => {
+                contactsList.innerHTML += `
+                    <div class="contact-item">
+                        <i class="ph ${contact.isBusiness ? 'ph-storefront' : 'ph-user'}"></i>
+                        <div class="item-info">
+                            <div class="item-name">${contact.name}</div>
+                            <div class="item-details">
+                                ${contact.number} • 
+                                ${contact.isBusiness ? 'Business' : 'Personal'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            placeholder.style.display = 'block';
+        }
+    } catch (error) {
+        console.error(`loadContacts: Error: ${error}\n`);
+        toastr.error('Failed to load contacts');
+    }
+}
