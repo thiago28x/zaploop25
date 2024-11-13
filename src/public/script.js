@@ -22,12 +22,16 @@ async function deleteSession(sessionId) {
 async function refreshSessions() {
     let sessionsList = document.getElementById('sessionsList');
     let placeholder = document.getElementById('sessionListPlaceholder');
+    let detailsSelect = document.getElementById('detailsSessionSelect');
     
     try {
         let response = await fetch('/list-sessions');
         let data = await response.json();
         
+        // Update sessions list
         sessionsList.innerHTML = '';
+        // Update details select
+        detailsSelect.innerHTML = '<option value="">Select a session</option>';
         
         if (data.sessions && data.sessions.length > 0) {
             placeholder.style.display = 'none';
@@ -42,16 +46,23 @@ async function refreshSessions() {
                     '<i class="ph ph-circle-fill" style="color: #4CAF50;"></i>' : 
                     '<i class="ph ph-circle-fill" style="color: #f44336;"></i>';
                 
+                // Add to sessions list
                 sessionsList.innerHTML += `
                     <div class="session-item">
                         ${statusIcon}
                         <span>${sessionId}</span>
                         <span class="status-text">${isConnected ? 'Connected' : 'Disconnected'}</span>
+                        <button onclick="viewSessionDetails('${sessionId}')" class="view-btn">
+                            <i class="ph ph-eye"></i>
+                        </button>
                         <button onclick="deleteSession('${sessionId}')" class="delete-btn">
                             <i class="ph ph-trash"></i>
                         </button>
                     </div>
                 `;
+                
+                // Add to details select
+                detailsSelect.innerHTML += `<option value="${sessionId}">${sessionId}</option>`;
             }
         } else {
             placeholder.style.display = 'block';
@@ -329,6 +340,8 @@ async function updateSessionSelect() {
 }
 
 function showTab(tabName) {
+    console.log(`showTab: Showing ${tabName} tab\n`);
+    
     // Hide all tabs
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
@@ -338,17 +351,24 @@ function showTab(tabName) {
     });
     
     // Show selected tab
-    document.getElementById(`${tabName}Tab`).classList.add('active');
-    document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
+    let tabContent = document.getElementById(`${tabName}Tab`);
+    let tabButton = document.querySelector(`[onclick="showTab('${tabName}')"]`);
     
-    // Load data if needed
-    let sessionId = document.getElementById('detailsSessionSelect').value;
-    if (sessionId) {
-        if (tabName === 'chats') {
-            loadChats(sessionId);
-        } else if (tabName === 'contacts') {
-            loadContacts(sessionId);
+    if (tabContent && tabButton) {
+        tabContent.classList.add('active');
+        tabButton.classList.add('active');
+        
+        // Load data if session is selected
+        let sessionId = document.getElementById('detailsSessionSelect')?.value;
+        if (sessionId) {
+            if (tabName === 'chats') {
+                loadChats(sessionId);
+            } else if (tabName === 'contacts') {
+                loadContacts(sessionId);
+            }
         }
+    } else {
+        console.error(`showTab: Tab ${tabName} not found\n`);
     }
 }
 
@@ -356,12 +376,19 @@ async function loadChats(sessionId) {
     let chatsList = document.getElementById('chatsList');
     let placeholder = document.getElementById('chatsPlaceholder');
     
+    if (!chatsList || !placeholder) {
+        console.error('loadChats: Required elements not found\n');
+        return;
+    }
+    
     try {
-        let chats = await getSessionChats(sessionId);
+        console.log(`loadChats: Loading chats for session ${sessionId}\n`);
+        chatsList.innerHTML = '<div class="loading">Loading chats...</div>';
         
+        let chats = await getSessionChats(sessionId);
         chatsList.innerHTML = '';
         
-        if (chats.length > 0) {
+        if (chats && chats.length > 0) {
             placeholder.style.display = 'none';
             chats.forEach(chat => {
                 chatsList.innerHTML += `
@@ -374,6 +401,7 @@ async function loadChats(sessionId) {
                                 ${chat.unreadCount ? `${chat.unreadCount} unread` : 'No unread messages'}
                             </div>
                         </div>
+                        <button onclick="copyToClipboard('${chat.id}')" class="copy-btn"
                     </div>
                 `;
             });
@@ -419,3 +447,35 @@ async function loadContacts(sessionId) {
         toastr.error('Failed to load contacts');
     }
 }
+
+// Add function to view session details
+function viewSessionDetails(sessionId) {
+    let detailsSelect = document.getElementById('detailsSessionSelect');
+    detailsSelect.value = sessionId;
+    detailsSelect.dispatchEvent(new Event('change'));
+    
+    // Scroll to details section
+    document.querySelector('.session-details').scrollIntoView({ 
+        behavior: 'smooth' 
+    });
+}
+
+// Update the session select change handler
+document.getElementById('detailsSessionSelect')?.addEventListener('change', function() {
+    let sessionId = this.value;
+    if (sessionId) {
+        // Show active tab content
+        let activeTab = document.querySelector('.tab-btn.active');
+        if (activeTab) {
+            showTab(activeTab.getAttribute('data-tab'));
+        } else {
+            showTab('chats'); // Default to chats tab
+        }
+    } else {
+        // Clear both lists if no session selected
+        document.getElementById('chatsList').innerHTML = '';
+        document.getElementById('contactsList').innerHTML = '';
+        document.getElementById('chatsPlaceholder').style.display = 'block';
+        document.getElementById('contactsPlaceholder').style.display = 'block';
+    }
+});

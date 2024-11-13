@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/regular/style.css">
 </head>
 <body>
 <!-- add header, full width -->
@@ -48,6 +48,56 @@
                 <i class="ph ph-arrows-clockwise"></i> Refresh
             </span>
         </div>
+
+        <!-- Add this after your existing sessions section but before the closing body tag -->
+<div class="section">
+    <h2><i class="ph ph-chats"></i> Session Details</h2>
+    <div class="session-details">
+        <!-- Session selector -->
+        <div class="select-wrapper">
+            <select id="detailsSessionSelect" class="select-input">
+                <option value="">Select a session</option>
+            </select>
+            <button onclick="updateSessionSelect()" class="refresh-btn">
+                <i class="ph ph-arrows-clockwise"></i> Refresh
+            </button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('chats')">
+                <i class="ph ph-chats"></i> Chats
+            </button>
+            <button class="tab-btn" onclick="showTab('contacts')">
+                <i class="ph ph-address-book"></i> Contacts
+            </button>
+        </div>
+        
+        <!-- Chats Tab -->
+        <div id="chatsTab" class="tab-content active">
+            <div class="list-container">
+                <div id="chatsList" class="items-list">
+                    <!-- Chats will be populated here -->
+                </div>
+                <div id="chatsPlaceholder" class="placeholder">
+                    <p>No chats available</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Contacts Tab -->
+        <div id="contactsTab" class="tab-content">
+            <div class="list-container">
+                <div id="contactsList" class="items-list">
+                    <!-- Contacts will be populated here -->
+                </div>
+                <div id="contactsPlaceholder" class="placeholder">
+                    <p>No contacts available</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
         <div class="section">
             <h2><i class="ph ph-chat-text"></i> Send Message</h2>
@@ -153,5 +203,12 @@ sample qr code data
 
     </div>
     <script src="script.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        updateSessionSelect();
+        // Initialize with chats tab active
+        showTab('chats');
+    });
+    </script>
 </body>
 </html> 
