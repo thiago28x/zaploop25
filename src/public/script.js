@@ -239,6 +239,7 @@ async function getServerStatus() {
         toastr.error('Failed to fetch server status');
     }
 }
+getServerStatus()
 
 function updateResourceBar(barId, used, total) {
     let bar = document.getElementById(barId);
@@ -294,32 +295,48 @@ document.addEventListener('DOMContentLoaded', refreshSessions);
 //setInterval(refreshSessions, 30000); 
 
 async function getSessionChats(sessionId) {
+    console.log(`getSessionChats: sessionId: ${sessionId}\n`);
+    
     try {
-        let response = await fetch(`/session-chats-direct/${sessionId}`);
+        let response = await fetch(`/session-chats-direct/${sessionId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
         let data = await response.json();
         
         if (data.status === "success") {
-            console.log(`Retrieved ${data.count} chats`);
+            console.log(`getSessionChats: Retrieved ${data.count} chats\n`);
             return data.chats;
         }
     } catch (error) {
-        console.error(`Error fetching chats: ${error}\n`);
+        console.error(`getSessionChats: Error fetching chats: ${error}\n`);
         toastr.error('Failed to fetch chats');
     }
     return [];
 }
 
 async function getSessionContacts(sessionId) {
+    console.log(`getSessionContacts: sessionId: ${sessionId}\n`);
+    
     try {
-        let response = await fetch(`/session-contacts-direct/${sessionId}`);
+        let response = await fetch(`/session-contacts-direct/${sessionId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
         let data = await response.json();
         
         if (data.status === "success") {
-            console.log(`Retrieved ${data.count} contacts`);
+            console.log(`getSessionContacts: Retrieved ${data.count} contacts\n`);
             return data.contacts;
         }
     } catch (error) {
-        console.error(`Error fetching contacts: ${error}\n`);
+        console.error(`getSessionContacts: Error fetching contacts: ${error}\n`);
         toastr.error('Failed to fetch contacts');
     }
     return [];
@@ -340,35 +357,35 @@ async function updateSessionSelect() {
 }
 
 function showTab(tabName) {
-    console.log(`showTab: Showing ${tabName} tab\n`);
+    let tabs = document.querySelectorAll('.tab-btn');
+    let contents = document.querySelectorAll('.tab-content');
+    let selectedTab = document.querySelector(`.tab-btn[onclick="showTab('${tabName}')"]`);
+    let selectedContent = document.getElementById(`${tabName}Tab`);
     
-    // Hide all tabs
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
+    console.log(`showTab: Showing tab: ${tabName}\n`);
     
-    // Show selected tab
-    let tabContent = document.getElementById(`${tabName}Tab`);
-    let tabButton = document.querySelector(`[onclick="showTab('${tabName}')"]`);
-    
-    if (tabContent && tabButton) {
-        tabContent.classList.add('active');
-        tabButton.classList.add('active');
-        
-        // Load data if session is selected
-        let sessionId = document.getElementById('detailsSessionSelect')?.value;
-        if (sessionId) {
-            if (tabName === 'chats') {
-                loadChats(sessionId);
-            } else if (tabName === 'contacts') {
-                loadContacts(sessionId);
-            }
-        }
-    } else {
+    if (!selectedTab || !selectedContent) {
         console.error(`showTab: Tab ${tabName} not found\n`);
+        toastr.error('Tab not found');
+        return;
+    }
+
+    // Remove active class from all tabs and contents
+    tabs.forEach(tab => tab.classList.remove('active'));
+    contents.forEach(content => content.classList.remove('active'));
+
+    // Add active class to selected tab and content
+    selectedTab.classList.add('active');
+    selectedContent.classList.add('active');
+
+    // Load content based on selected tab
+    let sessionId = document.getElementById('detailsSessionSelect').value;
+    if (sessionId) {
+        if (tabName === 'chats') {
+            loadChats(sessionId);
+        } else if (tabName === 'contacts') {
+            loadContacts(sessionId);
+        }
     }
 }
 
@@ -377,7 +394,7 @@ async function loadChats(sessionId) {
     let placeholder = document.getElementById('chatsPlaceholder');
     
     if (!chatsList || !placeholder) {
-        console.error('loadChats: Required elements not found\n');
+        console.error(`loadChats: Required elements not found\n`);
         return;
     }
     
@@ -391,17 +408,23 @@ async function loadChats(sessionId) {
         if (chats && chats.length > 0) {
             placeholder.style.display = 'none';
             chats.forEach(chat => {
+                // Safely handle undefined values
+                let chatName = chat.name || chat.id || 'Unknown';
+                let unreadCount = chat.unreadCount || 0;
+                
                 chatsList.innerHTML += `
                     <div class="chat-item">
                         <i class="ph ${chat.isGroup ? 'ph-users' : 'ph-user'}"></i>
                         <div class="item-info">
-                            <div class="item-name">${chat.name || chat.id}</div>
+                            <div class="item-name">${chatName}</div>
                             <div class="item-details">
                                 ${chat.isGroup ? 'Group' : 'Private Chat'} • 
-                                ${chat.unreadCount ? `${chat.unreadCount} unread` : 'No unread messages'}
+                                ${unreadCount ? `${unreadCount} unread` : 'No unread messages'}
                             </div>
                         </div>
-                        <button onclick="copyToClipboard('${chat.id}')" class="copy-btn"
+                        <button onclick="copyToClipboard('${chat.id}')" class="copy-btn">
+                            <i class="ph ph-copy"></i>
+                        </button>
                     </div>
                 `;
             });
@@ -418,24 +441,37 @@ async function loadContacts(sessionId) {
     let contactsList = document.getElementById('contactsList');
     let placeholder = document.getElementById('contactsPlaceholder');
     
+    console.log(`loadContacts: Loading contacts for session ${sessionId}\n`);
+    
+    if (!contactsList || !placeholder) {
+        console.error(`loadContacts: Required elements not found\n`);
+        return;
+    }
+    
     try {
         let contacts = await getSessionContacts(sessionId);
-        
         contactsList.innerHTML = '';
         
-        if (contacts.length > 0) {
+        if (contacts && contacts.length > 0) {
             placeholder.style.display = 'none';
             contacts.forEach(contact => {
+                // Safely handle undefined values
+                let contactName = contact.name || 'Unknown';
+                let contactNumber = contact.number || 'No number';
+                
                 contactsList.innerHTML += `
                     <div class="contact-item">
                         <i class="ph ${contact.isBusiness ? 'ph-storefront' : 'ph-user'}"></i>
                         <div class="item-info">
-                            <div class="item-name">${contact.name}</div>
+                            <div class="item-name">${contactName}</div>
                             <div class="item-details">
-                                ${contact.number} • 
+                                ${contactNumber} • 
                                 ${contact.isBusiness ? 'Business' : 'Personal'}
                             </div>
                         </div>
+                        <button onclick="copyToClipboard('${contact.number}')" class="copy-btn">
+                            <i class="ph ph-copy"></i>
+                        </button>
                     </div>
                 `;
             });
@@ -479,3 +515,15 @@ document.getElementById('detailsSessionSelect')?.addEventListener('change', func
         document.getElementById('contactsPlaceholder').style.display = 'block';
     }
 });
+
+function copyToClipboard(text) {
+    console.log(`copyToClipboard: copying text: ${text}\n`);
+    
+    try {
+        navigator.clipboard.writeText(text);
+        toastr.success('Copied to clipboard');
+    } catch (error) {
+        console.error(`copyToClipboard: Error: ${error}\n`);
+        toastr.error('Failed to copy to clipboard');
+    }
+}
