@@ -49,7 +49,14 @@ async function startServer() {
     }
 }
 
-baileysApp.use(express.json());
+// Only apply JSON middleware to POST and PUT requests
+baileysApp.use((req, res, next) => {
+    if (req.method === 'POST' || req.method === 'PUT') {
+        express.json()(req, res, next);
+    } else {
+        next();
+    }
+});
 
 // Add static files middleware
 baileysApp.use(express.static(path.join(__dirname, 'public')));
@@ -100,7 +107,39 @@ baileysApp.get("/session/:sessionId", async (req, res) => {
     res.send({ status: "success", session: client });
 });
 
-baileysApp.post("/send-message", async (req, res) => {
+baileysApp.use((req, res, next) => {
+    console.log(`\n 🍪 BAILEYS SERVER: Request Logger: ${req.method} ${req.url}\n`);
+    next();
+});
+
+const postPutMiddleware = (req, res, next) => {
+    console.log(`\n 🍪 BAILEYS SERVER: POST/PUT middleware for ${req.path}\n`);
+    express.json()(req, res, next);
+};
+
+const validateMessageBody = (req, res, next) => {
+    console.log(`\n 🍪 BAILEYS SERVER: Validating message body for ${req.path}\n`);
+    
+    let { jid, sessionId } = req.body;
+    if (!jid || !sessionId) {
+        return res.status(400).json({ 
+            error: 'Missing required fields',
+            details: 'Both jid and sessionId are required'
+        });
+    }
+
+    req.body.jid = jid.replace(/\D/g, '').trim().replace(/^0+/, '');
+    if (req.body.jid.length < 10 || req.body.jid.length > 15) {
+        return res.status(400).json({ 
+            error: 'Invalid phone number length',
+            details: 'Phone number must be between 10 and 15 digits'
+        });
+    }
+
+    next();
+};
+
+baileysApp.post("/send-message", postPutMiddleware, validateMessageBody, async (req, res) => {
   let { sessionId, jid, message } = req.body;
   console.log(`\n💫BAILEYS SERVER: /send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
@@ -264,7 +303,7 @@ baileysApp.get("/session-info/:sessionId", async (req, res) => {
 
 
 
-baileysApp.post("/send-image", async (req, res) => {
+baileysApp.post("/send-image", postPutMiddleware, validateMessageBody, async (req, res) => {
     let { sessionId, jid, imageUrl, caption } = req.body;
     console.log(`\n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER: /send-image: Request params - sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}\n`);
     
@@ -428,38 +467,6 @@ async function gracefulShutdown() {
     }
 }
 
-// Middleware to log requests and validate JSON body
-baileysApp.use((req, res, next) => {
-    console.log(`\n 🍪 BAILEYS SERVER:  \nRequest Logger: ${req.method} ${req.url}\n`);
-
-    // Check if the request has a JSON body
-    if (!req.is('application/json')) {
-        return res.status(400).send({ error: 'Request must be in JSON format' });
-    }
-
-    // Check for 'jid' and 'sessionId' in the body
-    let { jid, sessionId } = req.body;
-    if (!jid || !sessionId) {
-        return res.status(400).send({ error: 'Missing phone number or sessionId in request body' });
-    }
-
-    // Sanitize 'jid' by removing all non-numeric characters
-    req.body.jid = jid.replace(/\D/g, '');
-
-    // Optionally, validate the length of the phone number
-    if (req.body.jid.length < 10 || req.body.jid.length > 15) {
-        return res.status(400).send({ error: 'Invalid phone number length' });
-    }
-
-    // Remove leading zeros if necessary
-    req.body.jid = req.body.jid.replace(/^0+/, '');
-
-    //trim
-    req.body.jid = req.body.jid.trim();
-
-    next();
-});
-
 // Add new endpoints for specific data retrieval
 baileysApp.get("/session-chats/:sessionId", async (req, res) => {
     let { sessionId } = req.params;
@@ -516,30 +523,39 @@ baileysApp.get("/session-chats-direct/:sessionId", async (req, res) => {
     let { sessionId } = req.params;
     console.log(`\n 🍪 BAILEYS SERVER: /session-chats-direct/${sessionId}: Fetching chats directly\n`);
     
+    if (!sessionId) {
+        return res.status(400).json({ 
+            error: "SessionId is required"
+        });
+    }
+
     try {
         let session = sessions.get(sessionId);
         if (!session?.sock) {
-            throw new Error("Session not found");
+            return res.status(404).json({ 
+                error: "Session not found",
+                sessionId 
+            });
         }
 
         let chats = await session.sock.fetchChats();
         console.log(`/session-chats-direct: Retrieved ${chats.length} chats for ${sessionId}\n`);
 
-        res.send({
+        return res.status(200).json({
             status: "success",
             sessionId,
             chats: chats.map(chat => ({
                 id: chat.id,
-                name: chat.name,
-                unreadCount: chat.unreadCount,
-                timestamp: chat.timestamp,
-                isGroup: chat.id.endsWith('@g.us')
+                name: chat.name
             })),
             count: chats.length
         });
     } catch (error) {
         console.error(`/session-chats-direct: Error: ${error}\n`);
-        res.status(500).send({ error: "Failed to fetch chats directly" });
+        res.status(500).json({ 
+            error: "Failed to fetch chats directly",
+            details: error.message
+        });
     }
 });
 
