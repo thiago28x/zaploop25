@@ -210,3 +210,47 @@ button:hover {
     background: white;
     border-radius: 4px;
 }
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.session-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.session-item i {
+    font-size: 12px;
+}
+
+.status-text {
+    font-size: 14px;
+    color: #666;
+}
+
+.delete-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #f44336;
+    cursor: pointer;
+}
+
+.delete-btn:hover {
+    color: #d32f2f;
+}

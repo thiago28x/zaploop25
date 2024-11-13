@@ -20,50 +20,45 @@ async function deleteSession(sessionId) {
 
 // Fetch and display active sessions
 async function refreshSessions() {
+    let sessionsList = document.getElementById('sessionsList');
+    let placeholder = document.getElementById('sessionListPlaceholder');
+    
     try {
         let response = await fetch('/list-sessions');
         let data = await response.json();
         
-        let sessionsList = document.getElementById('sessionsList');
-        let sessionSelect = document.getElementById('sessionSelect');
-        
-        // Clear existing options except the first one
-        sessionSelect.innerHTML = '<option value="">Select Session</option>';
         sessionsList.innerHTML = '';
-
-        data.sessions.forEach(sessionId => {
-            // Add to sessions list
-            let sessionCard = document.createElement('div');
-            sessionCard.className = 'session-card';
-            sessionCard.innerHTML = `
-                <div class="session-info">
-                    <span>${sessionId}</span>
-                    <div id="status-${sessionId}" class="status-indicator"></div>
-                </div>
-                <div class="session-actions">
-                    <button onclick="viewSessionInfo('${sessionId}')" style="background-color: #2196F3;">Info</button>
-                    <button onclick="deleteSession('${sessionId}')" style="background-color: #ff4444;">Delete</button>
-                </div>
-            `;
-            sessionsList.appendChild(sessionCard);
-
-            // Add to select dropdown
-            let option = document.createElement('option');
-            option.value = sessionId;
-            option.textContent = sessionId;
-            sessionSelect.appendChild(option);
-
-            /* if not empty, change placeholder to empty */
-            if (sessionId) {
-                document.getElementById('sessionListPlaceholder').innerHTML = '';
+        
+        if (data.sessions && data.sessions.length > 0) {
+            placeholder.style.display = 'none';
+            
+            for (let sessionId of data.sessions) {
+                // Get status for each session
+                let statusResponse = await fetch(`/session-status/${sessionId}`);
+                let statusData = await statusResponse.json();
+                
+                let isConnected = statusData.connectionState.state === 'open';
+                let statusIcon = isConnected ? 
+                    '<i class="ph ph-circle-fill" style="color: #4CAF50;"></i>' : 
+                    '<i class="ph ph-circle-fill" style="color: #f44336;"></i>';
+                
+                sessionsList.innerHTML += `
+                    <div class="session-item">
+                        ${statusIcon}
+                        <span>${sessionId}</span>
+                        <span class="status-text">${isConnected ? 'Connected' : 'Disconnected'}</span>
+                        <button onclick="deleteSession('${sessionId}')" class="delete-btn">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                `;
             }
-
-            // Update status immediately
-            updateSessionStatus(sessionId);
-        });
+        } else {
+            placeholder.style.display = 'block';
+        }
     } catch (error) {
-        console.error('Error fetching sessions:', error);
-        //toastr.error('Failed to fetch sessions');
+        console.error(`refreshSessions: Error refreshing sessions: ${error}\n`);
+        toastr.error('Failed to refresh sessions');
     }
 }
 
@@ -89,43 +84,49 @@ async function createSession() {
         
         let data = await response.json();
         
+        // Clear any existing QR code modal
+        let existingModal = document.querySelector('.modal');
+        if (existingModal) existingModal.remove();
+
         // Create modal for QR code
         let modal = document.createElement('div');
         modal.className = 'modal';
         modal.innerHTML = `
             <div class="modal-content">
-                <h3>Scan QR Code for Session: ${sessionId}</h3>
-                <div id="qrcode-${sessionId}"></div>
-                <p>Scan this QR code with WhatsApp to connect</p>
-                <button onclick="this.parentElement.parentElement.remove()">Close</button>
+                <h3>Creating session: ${sessionId}</h3>
+                <div class="loading-spinner"></div>
             </div>
         `;
         document.body.appendChild(modal);
 
-/* 
-sample qr code data
-{
-    "status": "New connection created",
-    "sessionId": "luana",
-    "qrCode": "2@isXQMr9qaNDhpdwWZFLM/PIY59/LtWY9ZKT3qI3I7eHp0ClGOhruQeHd+O6D5NWsVG8557IZQyFBHzL7zUm1HXoxAlTTgNnpKTk=,DokWTivKJqEJchkG36o/Pv+gkocM/FHJQWO694AWxnA=,5Uu0/qKzBRbEXpZhnQqSMXAFK0ipZwNfGOo3S7Hqfxg=,GAFNb8CcgXqKaVYO8sc8WlAdFLXC0XF0qEgXF4QUe7Q="
-}
-
-*/
         // Generate QR code if available
         if (data.qrCode) {
-            // Using qrcode.js library
-            new QRCode(document.getElementById(`qrcode-${sessionId}`), {
-                text: data.qrCode,
+            // Convert the comma-separated string to a proper format
+            let qrData = data.qrCode;
+            if (typeof qrData === 'string' && qrData.includes(',')) {
+                // If it's the comma-separated format, join it
+                qrData = qrData.split(',').join('');
+            }
+
+            // Create new QR code
+            let qrContainer = document.getElementById(`qrcode-${sessionId}`);
+            qrContainer.innerHTML = ''; // Clear existing content
+            
+            new QRCode(qrContainer, {
+                text: qrData,
                 width: 256,
-                height: 256
+                height: 256,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
             });
+
             toastr.success('Session created. Scan the QR code to connect.');
         } else {
             toastr.warning('Session created but no QR code was generated.');
         }
 
         document.getElementById('sessionId').value = '';
-       // refreshSessions();
     } catch (error) {
         console.error(`createSession: Error creating session: ${error}\n`);
         toastr.error('Failed to create session');

@@ -9,6 +9,8 @@
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Google_Messages_icon_%282022%29.svg/192px-Google_Messages_icon_%282022%29.svg.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 <body>
 <!-- add header, full width -->
@@ -20,7 +22,7 @@
     <div class="container" style="margin-top: 30px;">
         
         <div class="section">
-            <h2>Create New Session</h2>
+            <h2><i class="ph ph-plus-circle"></i> Create New Session</h2>
             <div class="form-group">
                 <input type="text" id="sessionId" placeholder="Enter Session ID">
                 <button onclick="createSession()">Create Session</button>
@@ -35,18 +37,20 @@
         </div>
 
         <div class="section">
-            <h2>Online Sessions</h2>
-            <div id="sessionsList"></div>
-            <!-- placeholder for session list -->
+            <h2><i class="ph ph-broadcast"></i> Online Sessions</h2>
+            <div id="sessionsList">
+                <!-- Sessions will be populated here -->
+            </div>
             <div id="sessionListPlaceholder">
                 <p>No active sessions</p>
             </div>
-            <!-- refresh button to call again -->
-            <span hoverable id="refresh-sessions" onclick="refreshSessions()" style="cursor: pointer;">refresh</span>
+            <span hoverable id="refresh-sessions" onclick="refreshSessions()" style="cursor: pointer;">
+                <i class="ph ph-arrows-clockwise"></i> Refresh
+            </span>
         </div>
 
         <div class="section">
-            <h2>Send Message</h2>
+            <h2><i class="ph ph-chat-text"></i> Send Message</h2>
             <div class="form-group">
                 <!-- label -->
                 <label for="sessionSelect">Select Session</label>
@@ -60,7 +64,7 @@
         </div>
 
         <div class="section">
-            <h2>Send Image</h2>
+            <h2><i class="ph ph-image"></i> Send Image</h2>
             <div class="form-group">
                 <input type="text" id="imageSessionSelect" placeholder="Enter Session ID" value="luana">
                 <input type="text" id="imageJid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
@@ -139,7 +143,9 @@ sample qr code data
             </div>
         </div>
     </div>
-    <span hoverable id="refresh-server-status" onclick="getServerStatus()" style="cursor: pointer;">🔄</span>
+    <span hoverable id="refresh-server-status" onclick="getServerStatus()" style="cursor: pointer;">
+        <i class="ph ph-arrows-clockwise"></i> Refresh Status
+    </span>
 
 </div>
 

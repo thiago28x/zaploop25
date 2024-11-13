@@ -2,12 +2,29 @@ let makeWASocket = require("@whiskeysockets/baileys").default;
 let { useMultiFileAuthState, DisconnectReason } = require("@whiskeysockets/baileys");
 let path = require('path');
 let fs = require('fs');
-
+let fetch = require('node-fetch');
 let sessions = new Map();
 let sessionsDir = path.join(process.cwd(), 'whatsapp-sessions');
+let { makeInMemoryStore } = require("@whiskeysockets/baileys");
+
+
+/* THIS IS A API WHICH USES BAILEYS TO CONNECT TO WHATSAPP WEB AND FORWARD MESSAGES TO THE WEBHOOK  
+https://github.com/WhiskeySockets/Baileys.git
+Documentation: https://whiskeysockets.dev/Baileys/
+*/
 
 // Add connection state tracking
 let connectionStates = new Map();
+
+// Add store configuration
+const storeConfig = {
+    // Time to keep messages in memory
+    maxMessagesInMemory: 100,
+    // Message retention time (24 hours)
+    messageRetentionTime: 24 * 60 * 60 * 1000,
+    // Enable message history syncing
+    syncFullHistory: true
+};
 
 // Add function to restore sessions on startup
 async function restoreSessions() {
@@ -37,6 +54,8 @@ async function restoreSessions() {
 
 async function startBaileysConnection(sessionId = 'default') {
     let sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
+    // Initialize store with config
+    let store = makeInMemoryStore(storeConfig);
     
     // Add retry mechanism
     let retries = 0;
@@ -72,13 +91,29 @@ async function startBaileysConnection(sessionId = 'default') {
                 // Add message retry options
                 msgRetryCounterMap: {},
                 getMessage: async (key) => {
+                    if (store) {
+                        const msg = await store.loadMessage(key.remoteJid, key.id)
+                        return msg?.message || null
+                    }
                     return {
                         conversation: 'Message not found in store'
-                    };
+                    }
                 },
                 // Add QR code generation callback
                 generateHighQualityQRCode: true
             });
+
+            // Bind store to socket events
+            store.bind(sock.ev);
+
+            // Save store data to file
+            const storeFile = path.join(sessionDir, 'store.json');
+            store.writeToFile(storeFile);
+
+            // Load store data on startup
+            if (fs.existsSync(storeFile)) {
+                store.readFromFile(storeFile);
+            }
 
             // Add QR code event handler
             let qrCode = null;
@@ -88,18 +123,24 @@ async function startBaileysConnection(sessionId = 'default') {
 
             // Add message handling
             sock.ev.on('messages.upsert', async ({ messages, type }) => {
-
-                //if fromMe, skip
-                if (messages.fromMe) return;
-
                 let webhookUrl = process.env.WEBHOOK_URL;
                 
-                console.log(`\n 🐸 BAILEYS SERVER: Webhook: New message in ${sessionId}, type: ${type}\n text: ${messages.text}`);
-            //    console.log(`startBaileysConnection: Attempting to forward ${messages.length} messages to webhook\n`);
+                console.log(`startBaileysConnection: Processing messages.upsert event for session ${sessionId}\n`);
+                
+                //if fromMe, skip
+                if (messages[0]?.key?.fromMe) {
+                    console.log(`startBaileysConnection: Skipping message from self\n`);
+                    return;
+                }
+
+                console.log(`startBaileysConnection: New message in ${sessionId}, type: ${type}\n`);
                 
                 for (let message of messages) {
                     let msg = message.message;
-                    if (!msg) continue; // Skip if no message content
+                    if (!msg) {
+                        console.log(`startBaileysConnection: Skipping empty message\n`);
+                        continue;
+                    }
 
                     try {
                         // Extract message content based on type
@@ -162,7 +203,7 @@ async function startBaileysConnection(sessionId = 'default') {
 
                        // console.log(`startBaileysConnection: Successfully forwarded message ${message.key.id} to webhook\n`);
                     } catch (error) {
-                        console.error(`startBaileysConnection: Error sending webhook for message ${message.key.id}: ${error}\n`);
+                        console.error(`startBaileysConnection: Error processing message ${message?.key?.id}: ${error}\n`);
                     }
                 }
             });
@@ -170,9 +211,15 @@ async function startBaileysConnection(sessionId = 'default') {
             // Improve connection update handling
             sock.ev.on('connection.update', (update) => {
                 let { connection, lastDisconnect, qr } = update;
+                
+                // Add null check for connection
+                if (!connection) {
+                    console.log(`startBaileysConnection: Received update without connection state for ${sessionId}\n`);
+                    return;
+                }
+
                 console.log(`startBaileysConnection: Session ${sessionId} connection status: ${connection}\n`);
-                console.log(`startBaileysConnection: Connection details - QR Code Available: ${qr ? 'Yes' : 'No'}, Last Disconnect Error: ${lastDisconnect?.error?.message || 'None'}\n`);
-                console.log(`startBaileysConnection: Current connection state: ${connection === 'open' ? 'Connected' : connection === 'close' ? 'Disconnected' : connection === 'connecting' ? 'Connecting' : 'Unknown'}\n`);
+                
                 connectionStates.set(sessionId, {
                     state: connection,
                     qr: qr,
@@ -180,29 +227,86 @@ async function startBaileysConnection(sessionId = 'default') {
                 });
 
                 if (connection === 'close') {
-                    let shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
-                    console.log(`startBaileysConnection: Session ${sessionId} reconnecting: ${shouldReconnect}\n`);
+                    let disconnectReason = lastDisconnect?.error?.output?.statusCode;
+                    let shouldReconnect = (disconnectReason !== DisconnectReason.loggedOut && 
+                                         disconnectReason !== DisconnectReason.connectionClosed);
+                    
+                    console.log(`startBaileysConnection: Session ${sessionId} disconnect reason: ${disconnectReason}\n`);
+                    console.log(`startBaileysConnection: Session ${sessionId} should reconnect: ${shouldReconnect}\n`);
                     
                     if (shouldReconnect) {
                         sessions.delete(sessionId);
                         startBaileysConnection(sessionId);
                     } else {
-                        // Handle logout case
+                        // Properly cleanup the terminated session
+                        console.log(`startBaileysConnection: Terminating session ${sessionId}\n`);
                         sessions.delete(sessionId);
                         connectionStates.delete(sessionId);
-                        // Optionally delete session files
+                        
+                        // Delete session files
                         if (fs.existsSync(sessionDir)) {
-                            fs.rmSync(sessionDir, { recursive: true });
+                            try {
+                                fs.rmSync(sessionDir, { recursive: true });
+                                console.log(`startBaileysConnection: Deleted session directory for ${sessionId}\n`);
+                            } catch (error) {
+                                console.error(`startBaileysConnection: Error deleting session directory: ${error}\n`);
+                            }
+                        }
+                        
+                        // Close the socket connection
+                        if (sock) {
+                            sock.end();
+                            sock.removeAllListeners();
                         }
                     }
                 }
             });
 
-            // Store session
-            sessions.set(sessionId, sock);
+            // Add error event handler
+            sock.ev.on('error', (error) => {
+                console.error(`startBaileysConnection: Socket error for session ${sessionId}: ${error}\n`);
+            });
+
+            // Store session with its store
+            sessions.set(sessionId, { sock, store });
 
             // Handle connection updates
             sock.ev.on('creds.update', saveCreds);
+
+            // Add store sync event handler
+            sock.ev.on('chats.set', () => {
+                console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing chats\n`);
+                store.writeToFile(path.join(sessionDir, 'store.json'));
+            });
+
+            // Add contacts sync handler
+            sock.ev.on('contacts.set', () => {
+                console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing contacts\n`);
+                store.writeToFile(path.join(sessionDir, 'store.json'));
+            });
+
+            // Add message history sync handler
+            sock.ev.on('messaging-history.set', () => {
+                console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing message history\n`);
+                store.writeToFile(path.join(sessionDir, 'store.json'));
+            });
+
+            // Periodically write store to prevent data loss
+            const writeInterval = setInterval(() => {
+                if (sessions.has(sessionId)) {
+                    store.writeToFile(path.join(sessionDir, 'store.json'));
+                    console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Store auto-saved\n`);
+                } else {
+                    clearInterval(writeInterval);
+                }
+            }, 10000); // Every 10 seconds
+
+            // Add cleanup for the interval when session ends
+            sock.ev.on('connection.update', ({ connection }) => {
+                if (connection === 'close') {
+                    clearInterval(writeInterval);
+                }
+            });
 
             return sock;
         } catch (error) {
@@ -233,14 +337,85 @@ function validateSession(sessionId) {
 
 // Add function to get existing session
 function getSession(sessionId = 'default') {
-    return sessions.get(sessionId);
+    const session = sessions.get(sessionId);
+    return session?.sock || null;
 }
 
+// Add cleanup helper function
+async function cleanupSession(sessionId, sock, sessionDir) {
+    console.log(`cleanupSession: Starting cleanup for session ${sessionId}\n`);
+    
+    try {
+        // Remove from maps
+        sessions.delete(sessionId);
+        connectionStates.delete(sessionId);
+        
+        // Close socket
+        if (sock) {
+            sock.end();
+            sock.removeAllListeners();
+        }
+        
+        // Remove session directory
+        if (fs.existsSync(sessionDir)) {
+            await fs.promises.rm(sessionDir, { recursive: true });
+            console.log(`cleanupSession: Deleted session directory for ${sessionId}\n`);
+        }
+    } catch (error) {
+        console.error(`cleanupSession: Error cleaning up session ${sessionId}: ${error}\n`);
+    }
+}
+
+// Add session status check function
+function isSessionActive(sessionId) {
+    let session = sessions.get(sessionId);
+    let state = connectionStates.get(sessionId);
+    
+    return !!(session && state && state.state === 'open');
+}
+
+// Add function to fetch chat history
+async function fetchChatHistory(sessionId, jid, limit = 50) {
+    try {
+        const session = sessions.get(sessionId);
+        if (!session?.store) {
+            throw new Error('Session store not found');
+        }
+
+        const messages = await session.store.loadMessages(jid, limit);
+        return messages;
+    } catch (error) {
+        console.error(`fetchChatHistory: Error fetching chat history: ${error}\n`);
+    }
+}
+
+// Add store error handling helper
+function handleStoreError(error, operation) {
+    console.error(`Store ${operation} error: ${error}\n`);
+    // You could implement retry logic here
+    return null;
+}
+
+// Use it in the store operations
+try {
+    storeData = {
+        contacts: await store.contacts.all().catch(e => handleStoreError(e, 'contacts fetch')),
+        chats: await store.chats.all().catch(e => handleStoreError(e, 'chats fetch')),
+        messages: await store.messages.all().catch(e => handleStoreError(e, 'messages fetch'))
+    };
+} catch (error) {
+    handleStoreError(error, 'general store operation');
+}
+
+// Update exports
 module.exports = { 
     startBaileysConnection, 
     getSession,
     restoreSessions,
     sessions,
     connectionStates,
-    validateSession
+    validateSession,
+    isSessionActive,
+    cleanupSession,
+    fetchChatHistory
 };

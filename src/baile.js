@@ -193,10 +193,14 @@ baileysApp.get("/session-status/:sessionId", (req, res) => {
         let client = getSession(sessionId);
         let state = connectionStates.get(sessionId);
         
+        // Add connection verification
+        let isConnected = client && state && state.state === 'open';
+        
         res.send({
             status: "success",
             exists: !!client,
-            connectionState: state || { state: 'unknown' }
+            connectionState: state || { state: 'unknown' },
+            isConnected: isConnected
         });
     } catch (error) {
         console.error(`/session-status/${sessionId}: Error fetching status: ${error}\n`);
@@ -210,33 +214,73 @@ baileysApp.get("/session-info/:sessionId", async (req, res) => {
     console.log(`\n 🍪 BAILEYS SERVER:  \n/session-info/${sessionId}: Fetching info\n`);
     
     try {
-        let client = getSession(sessionId);
-        if (!client) {
-            throw new Error("Session not found");
+        let session = sessions.get(sessionId);
+        if (!session?.sock) {
+            console.error(`/session-info: No session found for ${sessionId}\n`);
+            return res.status(404).send({ 
+                error: "Session not found",
+                sessionId 
+            });
         }
 
-        let store = {};
-        if (client.store) {
+        let store = session.store;
+        let storeData = {
+            contacts: {},
+            chats: [],
+            messages: []
+        };
+
+        if (!store) {
+            console.error(`/session-info: No store found for session ${sessionId}\n`);
+            return res.status(500).send({ 
+                error: "Store not initialized",
+                sessionId 
+            });
+        }
+
+        try {
+            // Fetch contacts with error handling
             try {
-                store = {
-                    contacts: await client.store.contacts.all(),
-                    chats: await client.store.chats.all(),
-                    messages: await client.store.messages.all()
-                };
-                console.log(`\n 🍪 BAILEYS SERVER:  \nFetched contacts: ${Object.keys(store.contacts).length}\n`);
-                console.log(`\n 🍪 BAILEYS SERVER:  \nFetched chats: ${store.chats.length}\n`);
-                console.log(`\n 🍪 BAILEYS SERVER:  \nFetched messages: ${store.messages.length}\n`);
+                storeData.contacts = await store.contacts.all();
+                console.log(`/session-info: Retrieved ${Object.keys(storeData.contacts || {}).length} contacts\n`);
             } catch (error) {
-                console.error(`Error fetching store data: ${error}\n`);
+                console.error(`/session-info: Error fetching contacts: ${error}\n`);
+                storeData.contacts = { error: "Failed to fetch contacts" };
             }
+
+            // Fetch chats with error handling
+            try {
+                storeData.chats = await store.chats.all();
+                console.log(`/session-info: Retrieved ${storeData.chats.length} chats\n`);
+            } catch (error) {
+                console.error(`/session-info: Error fetching chats: ${error}\n`);
+                storeData.chats = { error: "Failed to fetch chats" };
+            }
+
+            // Fetch messages with error handling
+            try {
+                storeData.messages = await store.messages.all();
+                console.log(`/session-info: Retrieved ${storeData.messages.length} messages\n`);
+            } catch (error) {
+                console.error(`/session-info: Error fetching messages: ${error}\n`);
+                storeData.messages = { error: "Failed to fetch messages" };
+            }
+
+            console.log(`\n 🍪 BAILEYS SERVER:  \n/session-info: Store data retrieved:
+                Contacts: ${Object.keys(storeData.contacts || {}).length}
+                Chats: ${(storeData.chats || []).length}
+                Messages: ${(storeData.messages || []).length}\n`);
+        } catch (error) {
+            console.error(`/session-info: Error fetching store data: ${error}\n`);
+            storeData = { error: error.message };
         }
 
         res.send({
             status: "success",
-            info: store,
-            contacts: Object.keys(store.contacts || {}).length,
-            chats: (store.chats || []).length,
-            messages: (store.messages || []).length
+            info: storeData,
+            contacts: Object.keys(storeData.contacts || {}).length,
+            chats: (storeData.chats || []).length,
+            messages: (storeData.messages || []).length
         });
     } catch (error) {
         console.error(`/session-info/${sessionId}: Error fetching info: ${error}\n`);
