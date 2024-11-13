@@ -1,9 +1,8 @@
-
 async function deleteSession(sessionId) {
     console.log(`deleteSession: sessionId: ${sessionId}\n`);
     
     try {
-        let response = await fetch(`/delete-session/${sessionId}`, {
+        let response = await fetch(`/session/${sessionId}`, {
             method: 'DELETE'
         });
 
