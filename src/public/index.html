@@ -76,9 +76,10 @@
         <!-- Chats Tab -->
         <div id="chatsTab" class="tab-content active">
             <div class="list-container">
-                <div id="chatsList" class="items-list">
-                    <!-- Chats will be populated here -->
-                </div>
+         <!-- Add this where you want the chats to appear -->
+<div id="chats-list" class="section-container">
+    <!-- Chats will be dynamically inserted here -->
+</div>
                 <div id="chatsPlaceholder" class="placeholder">
                     <p>No chats available</p>
                 </div>
@@ -99,12 +100,14 @@
     </div>
 </div>
 
+
+
         <div class="section">
             <h2><i class="ph ph-chat-text"></i> Send Message</h2>
             <div class="form-group">
                 <!-- label -->
                 <label for="sessionSelect">Select Session</label>
-                <input type="text" id="sessionSelect" placeholder="Enter Session ID" value="luana">
+                <input type="text" id="sessionSelect" placeholder="Enter Session ID" value="default">
                 <label for="jid">Enter phone number</label>
                 <input type="text" id="jid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
                 <label for="message">Enter message</label>
@@ -116,7 +119,7 @@
         <div class="section">
             <h2><i class="ph ph-image"></i> Send Image</h2>
             <div class="form-group">
-                <input type="text" id="imageSessionSelect" placeholder="Enter Session ID" value="luana">
+                <input type="text" id="imageSessionSelect" placeholder="Enter Session ID" value="default">
                 <input type="text" id="imageJid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
                 <input type="text" id="imageUrl" placeholder="Enter Image URL" value="https://www.svgrepo.com/show/508699/landscape-placeholder.svg">
                 <input type="text" id="imageCaption" placeholder="Enter Caption (optional)" value="hello!">
@@ -131,7 +134,7 @@
 sample qr code data
 {
     "status": "New connection created",
-    "sessionId": "luana",
+    "sessionId": "default",
     "qrCode": "2@isXQMr9qaNDhpdwWZFLM/PIY59/LtWY9ZKT3qI3I7eHp0ClGOhruQeHd+O6D5NWsVG8557IZQyFBHzL7zUm1HXoxAlTTgNnpKTk=,DokWTivKJqEJchkG36o/Pv+gkocM/FHJQWO694AWxnA=,5Uu0/qKzBRbEXpZhnQqSMXAFK0ipZwNfGOo3S7Hqfxg=,GAFNb8CcgXqKaVYO8sc8WlAdFLXC0XF0qEgXF4QUe7Q="
 }
 
@@ -173,21 +176,21 @@ sample qr code data
         <div class="row" >
         <div class="resource">
             <div class="resource-name">RAM</div>
-            <div class="resource-bar" id="ramBar">
+            <div class="resource-bar" id="ramBar" style="min-width: 200px;">
                 <div class="bar-fill"></div>
                 <div class="bar-text"></div>
             </div>
         </div>
         <div class="resource">
             <div class="resource-name">CPU</div>
-            <div class="resource-bar" id="cpuBar">
+            <div class="resource-bar" id="cpuBar" style="min-width: 200px;">
                 <div class="bar-fill"></div>
                 <div class="bar-text"></div>
             </div>
         </div>
         <div class="resource">
             <div class="resource-name">Disk</div>
-            <div class="resource-bar" id="diskBar">
+            <div class="resource-bar" id="diskBar" style="min-width: 200px;">
                 <div class="bar-fill"></div>
                 <div class="bar-text"></div>
             </div>

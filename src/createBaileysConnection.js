@@ -323,33 +323,6 @@ async function startBaileysConnection(sessionId = 'default') {
                 }
             });
 
-            // Periodically write store to prevent data loss
-            const writeInterval = setInterval(() => {
-                if (sessions.has(sessionId)) {
-                    try {
-                        // Check if session directory exists before writing
-                        if (ensureSessionDir(sessionDir)) {
-                            const storeFile = path.join(sessionDir, 'store.json');
-                            store.writeToFile(storeFile);
-                            console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Store auto-saved\n`);
-                        } else {
-                            console.error(`startBaileysConnection: Cannot write store file - directory not accessible\n`);
-                        }
-                    } catch (error) {
-                        console.error(`startBaileysConnection: Error writing store file: ${error}\n`);
-                    }
-                } else {
-                    clearInterval(writeInterval);
-                }
-            }, 10000); // Every 10 seconds
-
-            // Add cleanup for the interval when session ends
-            sock.ev.on('connection.update', ({ connection }) => {
-                if (connection === 'close') {
-                    clearInterval(writeInterval);
-                }
-            });
-
             return sock;
         } catch (error) {
             console.error(`startBaileysConnection: Error attempt ${retries + 1}/${maxRetries}: ${error}\n`);

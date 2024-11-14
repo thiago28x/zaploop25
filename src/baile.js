@@ -408,9 +408,9 @@ function getServerStatus(req, res) {
             free: cpuFree.toFixed(2)
         },
         disk: {
-            total: formatBytes(totalDisk),
-            used: formatBytes(usedDisk),
-            free: formatBytes(freeDisk)
+            total: formatBytes(diskInfo.blocks * diskInfo.blksize),
+            used: formatBytes((diskInfo.blocks - diskInfo.bfree) * diskInfo.blksize),
+            free: formatBytes(diskInfo.bfree * diskInfo.blksize)
         }
     });
 }
@@ -426,7 +426,7 @@ async function gracefulShutdown() {
     let isShuttingDown = false;  // Prevent multiple shutdown attempts
     let shutdownTimeout = 10000; // 10 seconds timeout
     
-    console.log(`\n 🍪 BAILEYS SERVER:  \n\n 🍪 BAILEYS SERVER:  \n gracefulShutdown: Received shutdown signal\n`);
+    console.log(`\n �� BAILEYS SERVER:  \n\n 🍪 BAILEYS SERVER:  \n gracefulShutdown: Received shutdown signal\n`);
     
     if (isShuttingDown) {
         console.log(`\n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Shutdown already in progress\n`);
@@ -520,7 +520,7 @@ baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
 
 // Add endpoints using direct socket methods
 baileysApp.get("/session-chats-direct/:sessionId", async (req, res) => {
-    let { sessionId } = req.params;
+    let sessionId = req.params.sessionId;
     console.log(`\n 🍪 BAILEYS SERVER: /session-chats-direct/${sessionId}: Fetching chats directly\n`);
     
     if (!sessionId) {
@@ -538,17 +538,23 @@ baileysApp.get("/session-chats-direct/:sessionId", async (req, res) => {
             });
         }
 
-        let chats = await session.sock.fetchChats();
-        console.log(`/session-chats-direct: Retrieved ${chats.length} chats for ${sessionId}\n`);
+        // Using the correct method to fetch chats
+        let chats = await session.sock.groupFetchAllParticipating();
+        console.log(`/session-chats-direct: Retrieved ${Object.keys(chats).length} chats for ${sessionId}\n`);
+
+        // Transform the chats object into the desired format
+        let formattedChats = Object.entries(chats).map(([id, chat]) => ({
+            id: id,
+            name: chat.subject || chat.name || id,
+            participants: chat.participants?.length || 0,
+            isGroup: id.endsWith('@g.us')
+        }));
 
         return res.status(200).json({
             status: "success",
             sessionId,
-            chats: chats.map(chat => ({
-                id: chat.id,
-                name: chat.name
-            })),
-            count: chats.length
+            chats: formattedChats,
+            count: formattedChats.length
         });
     } catch (error) {
         console.error(`/session-chats-direct: Error: ${error}\n`);
