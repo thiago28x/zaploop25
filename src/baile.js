@@ -107,18 +107,10 @@ baileysApp.get("/session/:sessionId", async (req, res) => {
     res.send({ status: "success", session: client });
 });
 
-baileysApp.use((req, res, next) => {
-    console.log(`\n 🍪 BAILEYS SERVER: Request Logger: ${req.method} ${req.url}\n`);
-    next();
-});
 
-const postPutMiddleware = (req, res, next) => {
-    console.log(`\n 🍪 BAILEYS SERVER: POST/PUT middleware for ${req.path}\n`);
-    express.json()(req, res, next);
-};
 
 const validateMessageBody = (req, res, next) => {
-    console.log(`\n 🍪 BAILEYS SERVER: Validating message body for ${req.path}\n`);
+ //   console.log(`\n 🍪 BAILEYS SERVER: Validating message body for ${req.path}\n`);
     
     let { jid, sessionId } = req.body;
     if (!jid || !sessionId) {
@@ -141,12 +133,12 @@ const validateMessageBody = (req, res, next) => {
 
 baileysApp.post("/send-message", postPutMiddleware, validateMessageBody, async (req, res) => {
   let { sessionId, jid, message } = req.body;
-  console.log(`\n💫BAILEYS SERVER: /send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
+  //console.log(`\n💫BAILEYS SERVER: /send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
   try {
     let client = getSession(sessionId);
     if (!client) {
-      console.log(`\n 🍪 BAILEYS SERVER:  \n/send-message: No session found for sessionId: \n${sessionId}\n`);
+      //console.log(`\n 🍪 BAILEYS SERVER:  \n/send-message: No session found for sessionId: \n${sessionId}\n`);
       return res.status(404).send({ error: "no session found" });
     }
 
@@ -305,7 +297,7 @@ baileysApp.get("/session-info/:sessionId", async (req, res) => {
 
 baileysApp.post("/send-image", postPutMiddleware, validateMessageBody, async (req, res) => {
     let { sessionId, jid, imageUrl, caption } = req.body;
-    console.log(`\n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER: /send-image: Request params - sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}\n`);
+    //console.log(`\n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER: /send-image: Request params - sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}\n`);
     
     try {
         let client = getSession(sessionId);
@@ -323,7 +315,7 @@ baileysApp.post("/send-image", postPutMiddleware, validateMessageBody, async (re
             throw new Error("Invalid JID format");
         }
 
-        console.log(`\n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER:/send-image: Sending image to formatted JID: ${jid}\n`);
+       // console.log(`\n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER:/send-image: Sending image to formatted JID: ${jid}\n`);
         
         await client.sendMessage(jid, {
             image: { url: imageUrl || 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg' },
