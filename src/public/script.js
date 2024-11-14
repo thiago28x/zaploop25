@@ -494,7 +494,6 @@ async function loadContacts(sessionId) {
     }
 }
 
-// ... existing code ...
 
 async function fetchChats(sessionId) {
     try {
