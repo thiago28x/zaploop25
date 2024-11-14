@@ -15,6 +15,7 @@ const serverIP = "http://209.145.62.86:4001/"
 //git add . && git commit -m "update" && git push
 
 
+
 // Restore sessions before starting the server
 async function startServer() {
     const currentTime = Date.now();
@@ -109,29 +110,56 @@ baileysApp.get("/session/:sessionId", async (req, res) => {
 
 
 
-const validateMessageBody = (req, res, next) => {
- //   console.log(`\n 🍪 BAILEYS SERVER: Validating message body for ${req.path}\n`);
-    
-    let { jid, sessionId } = req.body;
-    if (!jid || !sessionId) {
-        return res.status(400).json({ 
-            error: 'Missing required fields',
-            details: 'Both jid and sessionId are required'
+const validatePhoneNumber = (req, res, next) => {
+    let phoneNumber = req.body.jid || req.params.jid || req.query.jid;
+    console.log(`validatePhoneNumber #004: Validating phone number: ${phoneNumber}`);
+
+    try {
+        if (!phoneNumber) {
+            throw new Error('Phone number is required');
+        }
+
+        // Clean the phone number
+        let cleanPhone = phoneNumber
+            .trim()
+            .replace(/@s\.whatsapp\.net/g, '')  // Remove any existing @s.whatsapp.net
+            .replace(/@c\.us/g, '')             // Remove any @c.us
+            .replace(/\D/g, '');                // Remove all non-digits
+
+        // Validate length (between 10 and 15 digits)
+        if (cleanPhone.length < 10 || cleanPhone.length > 15) {
+            throw new Error('Phone number must be between 10 and 15 digits');
+        }
+
+        // Add @s.whatsapp.net suffix if not a group chat
+        req.body.jid = cleanPhone + '@s.whatsapp.net';
+        
+        console.log(`validatePhoneNumber #001: Cleaned phone number: ${req.body.jid}`);
+        next();
+    } catch (error) {
+        console.log(`validatePhoneNumber #032: Error: ${error.message}`);
+        res.status(400).json({
+            error: 'Invalid phone number',
+            details: error.message
         });
     }
+};
 
-    req.body.jid = jid.replace(/\D/g, '').trim().replace(/^0+/, '');
-    if (req.body.jid.length < 10 || req.body.jid.length > 15) {
+const validateMessageBody = (req, res, next) => {
+    let { sessionId } = req.body;
+    console.log(`validateMessageBody #002: Validating message body for sessionId: ${sessionId}`);
+
+    if (!sessionId) {
         return res.status(400).json({ 
-            error: 'Invalid phone number length',
-            details: 'Phone number must be between 10 and 15 digits'
+            error: 'Missing required fields',
+            details: 'sessionId is required'
         });
     }
 
     next();
 };
 
-baileysApp.post("/send-message", validateMessageBody, async (req, res) => {
+baileysApp.post("/send-message", validatePhoneNumber, validateMessageBody, async (req, res) => {
   let { sessionId, jid, message } = req.body;
   //console.log(`\n💫BAILEYS SERVER: /send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
@@ -418,7 +446,7 @@ async function gracefulShutdown() {
     let isShuttingDown = false;  // Prevent multiple shutdown attempts
     let shutdownTimeout = 10000; // 10 seconds timeout
     
-    console.log(`\n �� BAILEYS SERVER:  \n\n 🍪 BAILEYS SERVER:  \n gracefulShutdown: Received shutdown signal\n`);
+    console.log(`\n  BAILEYS SERVER:  \n\n 🍪 BAILEYS SERVER:  \n gracefulShutdown: Received shutdown signal\n`);
     
     if (isShuttingDown) {
         console.log(`\n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Shutdown already in progress\n`);

@@ -143,7 +143,6 @@ async function startBaileysConnection(sessionId = 'default') {
                 
                 //if fromMe, skip
                 if (messages[0]?.key?.fromMe) {
-                    console.log(`startBaileysConnection: Skipping message from self\n`);
                     return;
                 }
 
