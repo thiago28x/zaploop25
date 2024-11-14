@@ -206,7 +206,7 @@ async function startBaileysConnection(sessionId = 'default') {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-WhatsApp-Session': sessionId
+                                'Origin': 'zaploop',
                             },
                             body: JSON.stringify(webhookPayload)
                         });
