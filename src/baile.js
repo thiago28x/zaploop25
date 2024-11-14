@@ -131,7 +131,7 @@ const validateMessageBody = (req, res, next) => {
     next();
 };
 
-baileysApp.post("/send-message", postPutMiddleware, validateMessageBody, async (req, res) => {
+baileysApp.post("/send-message", validateMessageBody, async (req, res) => {
   let { sessionId, jid, message } = req.body;
   //console.log(`\n💫BAILEYS SERVER: /send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
@@ -295,7 +295,7 @@ baileysApp.get("/session-info/:sessionId", async (req, res) => {
 
 
 
-baileysApp.post("/send-image", postPutMiddleware, validateMessageBody, async (req, res) => {
+baileysApp.post("/send-image", validateMessageBody, async (req, res) => {
     let { sessionId, jid, imageUrl, caption } = req.body;
     //console.log(`\n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER: /send-image: Request params - sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}\n`);
     
