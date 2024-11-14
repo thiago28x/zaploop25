@@ -159,7 +159,10 @@ async function startBaileysConnection(sessionId = 'default') {
                         // Extract message content based on type
                         let messageContent = {
                             id: message.key.id,
-                            from: message.key.remoteJid,
+                            from: message.key.remoteJid?.trim()
+                                .replace(/@s\.whatsapp\.net/g, '')
+                                .replace(/@c\.us/g, '')
+                                .replace(/\D/g, ''),
                             timestamp: message.messageTimestamp,
                             type: Object.keys(msg)[0], // Gets the message type (conversation, imageMessage, etc.)
                             text: msg.conversation || 
