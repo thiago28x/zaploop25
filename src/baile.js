@@ -327,8 +327,8 @@ baileysApp.get("/session-info/:sessionId", async (req, res) => {
 
 
 baileysApp.post("/send-image", validateMessageBody, async (req, res) => {
-    let { sessionId, jid, imageUrl, caption } = req.body;
-    //console.log(`\n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER: /send-image: Request params - sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}\n`);
+    let { sessionId, jid, imageUrl, caption, viewOnce } = req.body;
+    console.log(`/send-image #432: Request params - sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}, viewOnce: ${viewOnce}`);
     
     try {
         let client = getSession(sessionId);
@@ -345,12 +345,11 @@ baileysApp.post("/send-image", validateMessageBody, async (req, res) => {
         if (!jid.match(/^[0-9]+@(s\.whatsapp\.net|g\.us)$/)) {
             throw new Error("Invalid JID format");
         }
-
-       // console.log(`\n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER:/send-image: Sending image to formatted JID: ${jid}\n`);
         
         await client.sendMessage(jid, {
             image: { url: imageUrl || 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg' },
-            caption: caption || 'hello!'
+            caption: caption || 'hello!',
+            viewOnce: viewOnce || false
         });
 
         res.status(200).send({ status: "200 - Image sent successfully" });

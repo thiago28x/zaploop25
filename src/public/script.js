@@ -152,8 +152,9 @@ async function sendImage() {
     let jid = document.getElementById('imageJid').value.trim();
     let imageUrl = document.getElementById('imageUrl').value.trim();
     let caption = document.getElementById('imageCaption').value.trim();
+    let viewOnce = document.getElementById('viewonce').value;                       
 
-    console.log(`sendImage: sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}\n`);
+    console.log(`sendImage: sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}, viewOnce: ${viewOnce}\n`);
 
     try {
         let response = await fetch('/send-image', {
@@ -161,7 +162,7 @@ async function sendImage() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ sessionId, jid, imageUrl, caption })
+            body: JSON.stringify({ sessionId, jid, imageUrl, caption, viewOnce })
         });
 
         if (!response.ok) throw new Error('Failed to send image');
