@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Example</title>
+</head>
+<body>
+    <div id="qrcode"></div>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <script>
+        let qrData = {
+            "status": "New connection created",
+            "sessionId": "abc",
+            "qrCode": "2@uBi11dJ/x0eHSFri0r6q9NW+vYe6E9Q9S87WjV8kamcB3JdHZ5lGjASfff6hxyt6UT28WL2hM/fdRKsmD3WbFQi49cxP+mYxsFc=,R1x12zEaQVdwTFUcCqtQSgFONJWdbtGwSbbldM7i+n0=,Hoq/xghw5kudAVRd7fiZ+qWS6EUfZy0d8EoqmsUSfBQ=,L8md9WNSTc/ThXQpYShKQ0GGT3zROlnPUaNpy3WCbn8="
+        };
+
+        let sanitizedData = encodeURIComponent(qrData.qrCode);
+
+        QRCode.toCanvas(document.getElementById('qrcode'), sanitizedData, function (error) {
+            if (error) console.error(error);
+            console.log('QR code generated!');
+        });
+    </script>
+</body>
+</html>

@@ -6,6 +6,7 @@ let fetch = require('node-fetch');
 let sessions = new Map();
 let sessionsDir = path.join(process.cwd(), 'whatsapp-sessions');
 let { makeInMemoryStore } = require("@whiskeysockets/baileys");
+let QRCode = require('qrcode');
 
 
 /* THIS IS A API WHICH USES BAILEYS TO CONNECT TO WHATSAPP WEB AND FORWARD MESSAGES TO THE WEBHOOK  
@@ -25,6 +26,9 @@ const storeConfig = {
     // Enable message history syncing
     syncFullHistory: true
 };
+
+// Add at the top with other constants
+let QR_TIMEOUT = 3 * 60 * 1000; // 3 minutes in milliseconds
 
 // Add function to restore sessions on startup
 async function restoreSessions() {
@@ -68,12 +72,12 @@ function ensureSessionDir(sessionDir) {
 
 async function startBaileysConnection(sessionId = 'default') {
     let sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
-    // Initialize store with config
     let store = makeInMemoryStore(storeConfig);
     
-    // Add retry mechanism
+    // Add variables for QR timeout
+    let qrStartTime = null;
     let retries = 0;
-    const maxRetries = 3;
+    let maxRetries = 3;
 
     while (retries < maxRetries) {
         try {
@@ -90,7 +94,7 @@ async function startBaileysConnection(sessionId = 'default') {
             }
 
             // Load auth state
-            console.log(`startBaileysConnection: Loading auth state\n`);
+            console.log(`startBaileysConnection: Loading auth state #231\n`);
             let { state, saveCreds } = await useMultiFileAuthState(sessionDir);
 
             // Create WA Socket connection
@@ -112,9 +116,7 @@ async function startBaileysConnection(sessionId = 'default') {
                     return {
                         conversation: 'Message not found in store'
                     }
-                },
-                // Add QR code generation callback
-                generateHighQualityQRCode: true
+                }
             });
 
             // Bind store to socket events
@@ -129,10 +131,37 @@ async function startBaileysConnection(sessionId = 'default') {
                 store.readFromFile(storeFile);
             }
 
-            // Add QR code event handler
+            // Modified QR code event handler with timeout
             let qrCode = null;
-            sock.ev.on('connection.update', ({ qr }) => {
-                if (qr) qrCode = qr;
+            let qrCodeImage = null;
+            sock.ev.on('connection.update', async ({ qr, connection }) => {
+                if (qr) {
+                    // Initialize QR start time if this is the first QR code
+                    if (!qrStartTime) {
+                        qrStartTime = Date.now();
+                        console.log(`startBaileysConnection: Starting QR timeout timer #654\n`);
+                    }
+
+                    // Check if we've exceeded the QR timeout
+                    if (Date.now() - qrStartTime > QR_TIMEOUT) {
+                        console.log(`startBaileysConnection: QR code timeout reached #876\n`);
+                        await cleanupSession(sessionId, sock, sessionDir);
+                        throw new Error('QR code timeout reached');
+                    }
+
+                    qrCode = qr;
+                    try {
+                        qrCodeImage = await QRCode.toDataURL(qr, {
+                            errorCorrectionLevel: 'H',
+                            margin: 1,
+                            scale: 8,
+                            width: 256
+                        });
+                        console.log(`startBaileysConnection: New QR code generated at ${qrCode}\n`);
+                    } catch (err) {
+                        console.error(`startBaileysConnection: Error generating QR PNG: ${err} #432\n`);
+                    }
+                }
             });
 
             // Add message handling
@@ -283,8 +312,8 @@ async function startBaileysConnection(sessionId = 'default') {
                 console.error(`startBaileysConnection: Socket error for session ${sessionId}: ${error}\n`);
             });
 
-            // Store session with its store
-            sessions.set(sessionId, { sock, store });
+            // Store session with its store and QR code
+            sessions.set(sessionId, { sock, store, qrCode, qrCodeImage });
 
             // Handle connection updates
             sock.ev.on('creds.update', saveCreds);

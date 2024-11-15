@@ -74,13 +74,8 @@ async function refreshSessions() {
 }
 
 async function createSession() {
-    let sessionId = document.getElementById('sessionId').value.trim();
-    console.log(`createSession: sessionId: ${sessionId}\n`);
-
-    if (!sessionId) {
-        toastr.error('Please enter a session ID');
-        return;
-    }
+    let sessionId = document.getElementById('sessionId').value;
+    console.log(`createSession #123: Creating session with ID: ${sessionId}`);
 
     try {
         let response = await fetch('/start', {
@@ -91,65 +86,30 @@ async function createSession() {
             body: JSON.stringify({ sessionId })
         });
 
-        if (!response.ok) throw new Error('Failed to create session');
-        
         let data = await response.json();
         
-        // Clear any existing QR code modal
-        let existingModal = document.querySelector('.modal');
-        if (existingModal) existingModal.remove();
+        // Handle QR code image
+        let qrPlaceholder = document.getElementById('qrcode-placeholder');
+        let qrImage = document.getElementById('qr-image');
 
-        // Create modal for QR code
-        let modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <span class="close-btn" onclick="this.parentElement.parentElement.remove()">
-                    <i class="ph ph-x"></i>
-                </span>
-                <h3>Creating session: ${sessionId}</h3>
-                <div class="loading-spinner"></div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-
-        // Auto close after 30 seconds
-        setTimeout(() => {
-            if (modal && document.body.contains(modal)) {
-                modal.remove();
-            }
-        }, 30000);
-
-        // Generate QR code if available
-        if (data.qrCode) {
-            // Convert the comma-separated string to a proper format
-            let qrData = data.qrCode;
-            if (typeof qrData === 'string' && qrData.includes(',')) {
-                // If it's the comma-separated format, join it
-                qrData = qrData.split(',').join('');
-            }
-
-            // Create new QR code
-            let qrContainer = document.getElementById(`qrcode-${sessionId}`);
-            qrContainer.innerHTML = ''; // Clear existing content
-            
-            new QRCode(qrContainer, {
-                text: qrData,
-                width: 256,
-                height: 256,
-                colorDark: "#000000",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
-            });
-
-            toastr.success('Session created. Scan the QR code to connect.');
+        if (data.qrCodeImage) {
+            qrPlaceholder.style.display = 'none';
+            qrImage.src = data.qrCodeImage;
+            qrImage.style.display = 'block';
+            console.log(`createSession #456: QR code image displayed`);
         } else {
-            toastr.warning('Session created but no QR code was generated.');
+            qrPlaceholder.style.display = 'block';
+            qrImage.style.display = 'none';
+            console.log(`createSession #789: No QR code image available`);
         }
 
-        document.getElementById('sessionId').value = '';
+        // Show success message
+        toastr.success('Session created successfully');
+        
+        // Refresh the sessions list
+        refreshSessions();
     } catch (error) {
-        console.error(`createSession: Error creating session: ${error}\n`);
+        console.error(`createSession #321: Error: ${error}`);
         toastr.error('Failed to create session');
     }
 }

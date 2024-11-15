@@ -68,37 +68,40 @@ baileysApp.get('/dashboard', (req, res) => {
 
 //start a new session
 baileysApp.post("/start", async (req, res) => {
-  let { sessionId } = req.body;
-  console.log(`\n 🍪 BAILEYS SERVER:  \n/create-connection: Creating session with ID: ${sessionId}\n`);
-  
-  try {
-    let client = await startBaileysConnection(sessionId);
+    let { sessionId } = req.body;
+    console.log(`\n 🍪 BAILEYS SERVER: /create-connection #765: Creating session with ID: ${sessionId}\n`);
     
-    // Get QR code from the connection
-    let qrCode = null;
-    if (client.ev) {
-        await new Promise((resolve) => {
-            let timeout = setTimeout(() => resolve(), 10000); // 10 second timeout
-            
-            client.ev.on('connection.update', ({ qr }) => {
-                if (qr) {
-                    qrCode = qr;
-                    clearTimeout(timeout);
-                    resolve();
-                }
+    try {
+        let client = await startBaileysConnection(sessionId);
+        
+        // Get QR code from the connection
+        let session = sessions.get(sessionId);
+        let qrCodeImage = null;
+        
+        if (session) {
+            await new Promise((resolve) => {
+                let timeout = setTimeout(() => resolve(), 10000); // 10 second timeout
+                
+                client.ev.on('connection.update', async ({ qr }) => {
+                    if (qr) {
+                        clearTimeout(timeout);
+                        resolve();
+                    }
+                });
             });
+            
+            qrCodeImage = session.qrCodeImage;
+        }
+        
+        res.send({ 
+            status: "New connection created", 
+            sessionId,
+            qrCodeImage: qrCodeImage // Send PNG data URL instead of raw QR code
         });
+    } catch (error) {
+        console.error(`/create-connection: Error creating session: ${error} #543\n`);
+        res.status(500).send({ error: "Failed to create connection" });
     }
-    
-    res.send({ 
-        status: "New connection created", 
-        sessionId,
-        qrCode: qrCode // Send QR code in response if available
-    });
-  } catch (error) {
-    console.error(`/create-connection: Error creating session: ${error}\n`);
-    res.status(500).send({ error: "Failed to create connection" });
-  }
 });
 
 //route get session connection

@@ -27,12 +27,12 @@
                 <input type="text" id="sessionId" placeholder="Enter Session ID">
                 <button onclick="createSession()">Create Session</button>
             </div>
-            <!-- Add QR code container -->
+            <!-- Update QR code container -->
             <div class="qr-container">
                 <div id="qrcode-placeholder">
                     <p>QR code will appear here</p>
                 </div>
-                <div id="qrcode"></div>
+                <img id="qr-image" style="display: none; max-width: 256px; margin: 20px auto;" alt="WhatsApp QR Code">
             </div>
         </div>
 
