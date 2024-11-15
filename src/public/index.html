@@ -220,5 +220,33 @@ sample qr code data
         showTab('chats');
     });
     </script>
+    <script>
+        // Add this to your existing JavaScript
+        function connectWebSocket(sessionId) {
+            let ws = new WebSocket('ws://209.145.62.86:4002');
+            
+            ws.onopen = () => {
+                console.log(`WebSocket #321: Connected to server`);
+            };
+            
+            ws.onmessage = (event) => {
+                let data = JSON.parse(event.data);
+                if (data.type === 'qr' && data.sessionId === sessionId) {
+                    // Update QR code display
+                    document.getElementById('qrcode').src = data.qr;
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.log(`WebSocket #322: Error connecting to server`);
+            };
+            
+            ws.onclose = () => {
+                console.log(`WebSocket #323: Disconnected from server`);
+                // Reconnect after 5 seconds
+                setTimeout(() => connectWebSocket(sessionId), 5000);
+            };
+        }
+    </script>
 </body>
 </html> 

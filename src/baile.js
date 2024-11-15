@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 const os = require('os');
+const WebSocket = require('ws');
 let isStarting = false;
 let lastStartAttempt = 0;
 const MIN_RESTART_INTERVAL = 30000; // 30 seconds
@@ -42,6 +43,21 @@ async function startServer() {
         baileysApp.listen(4001, () => {
             isStarting = false;
             console.log(`\n 🍪 BAILEYS SERVER:  \nstartServer: Baileys service running on port 4001\n`);
+            
+            // Initialize WebSocket server to listen on all interfaces
+            wss = new WebSocket.Server({ 
+                port: 4002,
+                host: '0.0.0.0'  // Listen on all network interfaces
+            });
+            console.log(`startServer #124: WebSocket server running on 209.145.62.86:4002`);
+            
+            wss.on('connection', (ws) => {
+                console.log(`WebSocket #125: Client connected`);
+                
+                ws.on('error', (error) => {
+                    console.log(`WebSocket #126: Error: ${error}`);
+                });
+            });
         });
     } catch (error) {
         console.error(`startServer: Error starting server: ${error}\n`);
@@ -69,37 +85,36 @@ baileysApp.get('/dashboard', (req, res) => {
 //start a new session
 baileysApp.post("/start", async (req, res) => {
     let { sessionId } = req.body;
-    console.log(`\n 🍪 BAILEYS SERVER: /create-connection #765: Creating session with ID: ${sessionId}\n`);
+    console.log(`/create-connection #127: Creating session with ID: ${sessionId}`);
     
     try {
         let client = await startBaileysConnection(sessionId);
-        
-        // Get QR code from the connection
         let session = sessions.get(sessionId);
-        let qrCodeImage = null;
         
         if (session) {
-            await new Promise((resolve) => {
-                let timeout = setTimeout(() => resolve(), 10000); // 10 second timeout
-                
-                client.ev.on('connection.update', async ({ qr }) => {
-                    if (qr) {
-                        clearTimeout(timeout);
-                        resolve();
-                    }
-                });
+            client.ev.on('connection.update', async ({ qr }) => {
+                if (qr) {
+                    // Broadcast QR to all connected clients
+                    wss.clients.forEach((client) => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({
+                                type: 'qr',
+                                sessionId: sessionId,
+                                qr: qr
+                            }));
+                        }
+                    });
+                }
             });
-            
-            qrCodeImage = session.qrCodeImage;
         }
         
         res.send({ 
             status: "New connection created", 
             sessionId,
-            qrCodeImage: qrCodeImage // Send PNG data URL instead of raw QR code
+            wsEndpoint: `ws://localhost:4002`
         });
     } catch (error) {
-        console.error(`/create-connection: Error creating session: ${error} #543\n`);
+        console.error(`/create-connection #128: Error creating session: ${error}`);
         res.status(500).send({ error: "Failed to create connection" });
     }
 });
