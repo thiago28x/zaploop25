@@ -75,42 +75,46 @@ async function refreshSessions() {
 
 async function createSession() {
     let sessionId = document.getElementById('sessionId').value;
-    console.log(`createSession #123: Creating session with ID: ${sessionId}`);
+    console.log(`createSession #543: Creating session with ID: ${sessionId}`);
 
     try {
+        // Show loading state
+        document.getElementById('qr-image').style.display = 'none';
+        document.getElementById('qrcode-placeholder').style.display = 'block';
+        document.getElementById('qrcode-placeholder').innerHTML = 'Loading QR code...';
+
         let response = await fetch('/start', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify({ sessionId })
         });
 
-        let data = await response.json();
-        
-        // Handle QR code image
-        let qrPlaceholder = document.getElementById('qrcode-placeholder');
-        let qrImage = document.getElementById('qr-image');
-
-        if (data.qrCodeImage) {
-            qrPlaceholder.style.display = 'none';
-            qrImage.src = data.qrCodeImage;
-            qrImage.style.display = 'block';
-            console.log(`createSession #456: QR code image displayed`);
+        if (response.ok) {
+            // Check if response is an image
+            let contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('image')) {
+                let blob = await response.blob();
+                let imageUrl = URL.createObjectURL(blob);
+                
+                // Display the QR code image
+                let qrImage = document.getElementById('qr-image');
+                qrImage.src = imageUrl;
+                qrImage.style.display = 'block';
+                document.getElementById('qrcode-placeholder').style.display = 'none';
+                
+                // Clean up the object URL after the image loads
+                qrImage.onload = () => URL.revokeObjectURL(imageUrl);
+            } else {
+                throw new Error('Invalid response format');
+            }
         } else {
-            qrPlaceholder.style.display = 'block';
-            qrImage.style.display = 'none';
-            console.log(`createSession #789: No QR code image available`);
+            throw new Error(`Server responded with status: ${response.status}`);
         }
-
-        // Show success message
-        toastr.success('Session created successfully');
-        
-        // Refresh the sessions list
-        refreshSessions();
     } catch (error) {
-        console.error(`createSession #321: Error: ${error}`);
-        toastr.error('Failed to create session');
+        console.error(`createSession #544: Error: ${error}`);
+        document.getElementById('qrcode-placeholder').innerHTML = 'Error generating QR code';
     }
 }
 

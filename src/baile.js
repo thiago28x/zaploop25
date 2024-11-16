@@ -5,6 +5,7 @@ const fs = require('fs');
 require('dotenv').config();
 const os = require('os');
 const WebSocket = require('ws');
+const QRCode = require('qrcode');
 let isStarting = false;
 let lastStartAttempt = 0;
 const MIN_RESTART_INTERVAL = 30000; // 30 seconds
@@ -88,31 +89,46 @@ baileysApp.post("/start", async (req, res) => {
     console.log(`/create-connection #127: Creating session with ID: ${sessionId}`);
     
     try {
-        let client = await startBaileysConnection(sessionId);
-        let session = sessions.get(sessionId);
-        
-        if (session) {
+        let qrPromise = new Promise((resolve, reject) => {
+            let timeout = setTimeout(() => {
+                reject(new Error('QR code generation timeout'));
+            }, 30000); // 30 seconds timeout
+
+            let client = startBaileysConnection(sessionId);
+            
             client.ev.on('connection.update', async ({ qr }) => {
                 if (qr) {
-                    // Broadcast QR to all connected clients
-                    wss.clients.forEach((client) => {
-                        if (client.readyState === WebSocket.OPEN) {
-                            client.send(JSON.stringify({
-                                type: 'qr',
-                                sessionId: sessionId,
-                                qr: qr
-                            }));
-                        }
-                    });
+                    clearTimeout(timeout);
+                    try {
+                        // Generate PNG directly from QR data
+                        let qrImage = await QRCode.toDataURL(qr, {
+                            errorCorrectionLevel: 'H',
+                            margin: 1,
+                            scale: 8,
+                            width: 256
+                        });
+                        
+                        // Convert base64 to buffer
+                        let qrBuffer = Buffer.from(qrImage.split(',')[1], 'base64');
+                        
+                        resolve(qrBuffer);
+                    } catch (err) {
+                        reject(err);
+                    }
                 }
             });
-        }
-        
-        res.send({ 
-            status: "New connection created", 
-            sessionId,
-            wsEndpoint: `ws://localhost:4002`
         });
+
+        // Wait for QR code generation
+        let qrBuffer = await qrPromise;
+        
+        // Send QR code as PNG image
+        res.writeHead(200, {
+            'Content-Type': 'image/png',
+            'Content-Length': qrBuffer.length
+        });
+        res.end(qrBuffer);
+        
     } catch (error) {
         console.error(`/create-connection #128: Error creating session: ${error}`);
         res.status(500).send({ error: "Failed to create connection" });
@@ -234,31 +250,47 @@ baileysApp.get("/list-sessions", (req, res) => {
     }
 });
 
-baileysApp.delete("/session/:sessionId", (req, res) => {
+baileysApp.delete("/session/:sessionId", async (req, res) => {
     let { sessionId } = req.params;
-    console.log(`\n 🍪 BAILEYS SERVER:  \n/session/${sessionId}: Deleting session\n`);
+    console.log(`deleteSession #543: Attempting to delete session: ${sessionId}`);
     
     try {
         let client = getSession(sessionId);
         if (!client) {
-            throw new Error("Session not found");
+            console.log(`deleteSession #544: No session found for ID: ${sessionId}`);
+            return res.status(404).send({ error: "Session not found" });
         }
         
-        // Close the connection
-        client.end();
+        // Safely close the connection
+        try {
+            if (client.ws && client.ws.readyState !== WebSocket.CLOSED) {
+                await client.end();
+            }
+        } catch (closeError) {
+            console.log(`deleteSession #545: Non-critical error while closing connection: ${closeError}`);
+            // Continue with deletion even if connection close fails
+        }
+        
         // Remove from sessions map
         sessions.delete(sessionId);
         
-        // Optionally delete the session directory
+        // Delete session directory if exists
         let sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
         if (fs.existsSync(sessionDir)) {
             fs.rmSync(sessionDir, { recursive: true });
+            console.log(`deleteSession #546: Deleted session directory: ${sessionDir}`);
         }
         
-        res.send({ status: "success", message: "Session deleted" });
+        res.send({ 
+            status: "success", 
+            message: "Session deleted successfully" 
+        });
     } catch (error) {
-        console.error(`/session/${sessionId}: Error deleting session: ${error}\n`);
-        res.status(500).send({ error: "Failed to delete session" });
+        console.error(`deleteSession #547: Error deleting session: ${error}`);
+        res.status(500).send({ 
+            error: "Failed to delete session",
+            details: error.message 
+        });
     }
 });
 
