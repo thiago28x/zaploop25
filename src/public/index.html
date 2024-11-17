@@ -27,7 +27,7 @@
                 <input type="text" id="sessionId" placeholder="Enter Session ID">
                 <button onclick="createSession()">Create Session</button>
             </div>
-            <!-- Update QR code container -->
+            <!-- Update QR code container with proper structure -->
             <div class="qr-container">
                 <div id="qrcode-placeholder">
                     <p>QR code will appear here</p>
@@ -215,38 +215,118 @@ sample qr code data
     <script src="script.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        console.log(`DOMContentLoaded #543: Initializing`);
+        initializeWebSocket();
         updateSessionSelect();
-        // Initialize with chats tab active
         showTab('chats');
     });
-    </script>
-    <script>
-        // Add this to your existing JavaScript
-        function connectWebSocket(sessionId) {
-            let ws = new WebSocket('ws://209.145.62.86:4002');
-            
-            ws.onopen = () => {
-                console.log(`WebSocket #321: Connected to server`);
-            };
-            
-            ws.onmessage = (event) => {
-                let data = JSON.parse(event.data);
-                if (data.type === 'qr' && data.sessionId === sessionId) {
-                    // Update QR code display
-                    document.getElementById('qrcode').src = data.qr;
-                }
-            };
-            
-            ws.onerror = (error) => {
-                console.log(`WebSocket #322: Error connecting to server`);
-            };
-            
-            ws.onclose = () => {
-                console.log(`WebSocket #323: Disconnected from server`);
-                // Reconnect after 5 seconds
-                setTimeout(() => connectWebSocket(sessionId), 5000);
-            };
+
+    function startQRCheck(sessionId) {
+        console.log(`startQRCheck #543: Starting QR check for session ${sessionId}`);
+        
+        // Clear any existing interval
+        if (qrCheckInterval) {
+            clearInterval(qrCheckInterval);
         }
+
+        // Check immediately
+        checkQRCode(sessionId);
+
+        // Then check every 5 seconds
+        qrCheckInterval = setInterval(() => checkQRCode(sessionId), 5000);
+
+        // Stop checking after 2 minutes (when QR typically expires)
+        setTimeout(() => {
+            if (qrCheckInterval) {
+                clearInterval(qrCheckInterval);
+                console.log(`startQRCheck #544: Stopped QR check for session ${sessionId}`);
+                document.getElementById('qrcode-placeholder').innerHTML = 
+                    'QR code expired. Please try creating a new session.';
+            }
+        }, 120000);
+    }
+
+    // Add WebSocket connection handling
+    let ws;
+    function initializeWebSocket() {
+        ws = new WebSocket('ws://209.145.62.86:4002');
+        console.log(`initializeWebSocket #543: Attempting connection`);
+
+        ws.onopen = () => {
+            console.log(`initializeWebSocket #544: Connected successfully`);
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                let data = JSON.parse(event.data);
+                console.log(`initializeWebSocket #545: Received message type: ${data.type}`);
+                
+                if (data.type === 'qr') {
+                    let qrImage = document.getElementById('qr-image');
+                    let placeholder = document.getElementById('qrcode-placeholder');
+                    
+                    if (qrImage && placeholder) {
+                        qrImage.src = data.qr;
+                        qrImage.style.display = 'block';
+                        placeholder.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error(`initializeWebSocket #546: Error processing message: ${error}`);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error(`initializeWebSocket #547: WebSocket error: ${error}`);
+        };
+
+        ws.onclose = () => {
+            console.log(`initializeWebSocket #548: Connection closed, attempting reconnect in 5s`);
+            setTimeout(initializeWebSocket, 5000);
+        };
+    }
     </script>
+    <style>
+    .qr-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 20px 0;
+        min-height: 256px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    #qrcode-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 256px;
+        width: 100%;
+        text-align: center;
+        color: #666;
+    }
+
+    #qr-image {
+        max-width: 256px;
+        height: auto;
+        display: none;
+        margin: 0 auto;
+    }
+
+    .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 256px;
+    }
+
+    .error {
+        color: #f44336;
+        text-align: center;
+        padding: 20px;
+    }
+    </style>
 </body>
 </html> 

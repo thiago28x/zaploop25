@@ -429,7 +429,7 @@ async function cleanupSession(sessionId, sock, sessionDir) {
 function isSessionActive(sessionId) {
     let session = sessions.get(sessionId);
     let state = connectionStates.get(sessionId);
-    
+654    
     return !!(session && state && state.state === 'open');
 }
 

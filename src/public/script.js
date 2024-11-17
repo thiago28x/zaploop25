@@ -121,9 +121,14 @@ async function createSession() {
 
     try {
         // Show loading state
-        document.getElementById('qr-image').style.display = 'none';
-        document.getElementById('qrcode-placeholder').style.display = 'block';
-        document.getElementById('qrcode-placeholder').innerHTML = 'Loading QR code...';
+        let qrImage = document.getElementById('qr-image');
+        let placeholder = document.getElementById('qrcode-placeholder');
+        
+        if (qrImage && placeholder) {
+            qrImage.style.display = 'none';
+            placeholder.style.display = 'block';
+            placeholder.innerHTML = 'Loading QR code...';
+        }
 
         let response = await fetch('/start', {
             method: 'POST',
@@ -138,12 +143,14 @@ async function createSession() {
             throw new Error(errorData.message || 'Failed to create session');
         }
 
-        // Start checking for QR code via HTTP fallback
+        // Start checking for QR code
         startQRCheck(sessionId);
 
     } catch (error) {
         console.error(`createSession #544: Error: ${error}`);
-        document.getElementById('qrcode-placeholder').innerHTML = 'Error generating QR code';
+        if (placeholder) {
+            placeholder.innerHTML = 'Error generating QR code';
+        }
         toastr.error(error.message || 'Failed to create session');
     }
 }
@@ -586,5 +593,37 @@ function copyToClipboard(text) {
     } catch (error) {
         console.error(`copyToClipboard: Error: ${error}\n`);
         toastr.error('Failed to copy to clipboard');
+    }
+}
+
+async function checkQRCode(sessionId) {
+    console.log(`checkQRCode #543: Checking QR for session ${sessionId}`);
+    
+    try {
+        let response = await fetch(`/session-qr/${sessionId}`);
+        if (response.ok) {
+            let blob = await response.blob();
+            let imageUrl = URL.createObjectURL(blob);
+            
+            let qrImage = document.getElementById('qr-image');
+            let placeholder = document.getElementById('qrcode-placeholder');
+            
+            if (qrImage && placeholder) {
+                qrImage.src = imageUrl;
+                qrImage.style.display = 'block';
+                placeholder.style.display = 'none';
+                
+                // Clean up the object URL after the image loads
+                qrImage.onload = () => URL.revokeObjectURL(imageUrl);
+            }
+        } else {
+            throw new Error('QR code not available');
+        }
+    } catch (error) {
+        console.error(`checkQRCode #544: Error: ${error}`);
+        let placeholder = document.getElementById('qrcode-placeholder');
+        if (placeholder) {
+            placeholder.innerHTML = 'QR code not available. Please try again.';
+        }
     }
 }
