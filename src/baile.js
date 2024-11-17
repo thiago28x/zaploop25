@@ -11,6 +11,7 @@ let lastStartAttempt = 0;
 const MIN_RESTART_INTERVAL = 30000; // 30 seconds
 const baileysApp = express();
 const serverIP = "http://209.145.62.86:4001/"
+let wss;
 
 /* this is a Express server to send and receive whatsapp messages using baileys.*/
 
@@ -700,6 +701,43 @@ baileysApp.get("/qr/:sessionId", (req, res) => {
         res.status(500).send({ error: "Failed to serve QR code" });
     }
 });
+
+function initializeWebSocket() {
+    try {
+        wss = new WebSocket.Server({ 
+            port: 4002,
+            host: '0.0.0.0'  // Listen on all network interfaces
+        });
+        
+        console.log(`initializeWebSocket #543: Server initialized on port 4002`);
+        
+        wss.on('connection', (ws) => {
+            console.log(`initializeWebSocket #544: Client connected`);
+            
+            // Send initial connection confirmation
+            ws.send(JSON.stringify({
+                type: 'connection',
+                status: 'connected'
+            }));
+            
+            ws.on('error', (error) => {
+                console.log(`initializeWebSocket #545: Error: ${error}`);
+            });
+
+            ws.on('close', () => {
+                console.log(`initializeWebSocket #546: Client disconnected`);
+            });
+        });
+
+        wss.on('error', (error) => {
+            console.error(`initializeWebSocket #547: Server error: ${error}`);
+        });
+
+    } catch (error) {
+        console.error(`initializeWebSocket #548: Failed to initialize WebSocket server: ${error}`);
+        throw error; // Rethrow to be caught by startServer
+    }
+}
 
 startServer();
 
