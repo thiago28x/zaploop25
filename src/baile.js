@@ -782,6 +782,39 @@ function initializeWebSocket() {
     }
 }
 
+
+let { exec } = require('child_process');
+
+app.post('/update-server', (req, res) => {
+    let scriptPath = './src/updateserverfiles.sh';
+    
+    console.log(`[updateServer] Running update script at path: ${scriptPath} #544`);
+    
+    exec(`bash ${scriptPath}`, (error, stdout, stderr) => {
+        if (error) {
+            console.log(`[updateServer] Error executing script: ${error} #545`);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Failed to update server',
+                error: error.message 
+            });
+        }
+        
+        console.log(`[updateServer] Update script output: ${stdout} #546`);
+        
+        if (stderr) {
+            console.log(`[updateServer] Script stderr: ${stderr} #547`);
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Server update completed',
+            output: stdout 
+        });
+    });
+});
+
+
 startServer();
 
 console.log(`Server running at \n ${serverIP}dashboard \n`);

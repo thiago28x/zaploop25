@@ -16,6 +16,9 @@
 <!-- add header, full width -->
 <header class="header" style="width: 100%;">
     <h1>Zaploop Dashboard</h1>
+    <button id="updateServerBtn" onclick="updateServer()" class="update-btn">
+        <i class="ph ph-arrow-circle-up"></i> Update Server
+    </button>
 </header>
 
 
@@ -287,6 +290,34 @@ sample qr code data
             setTimeout(initializeWebSocket, 5000);
         };
     }
+
+    function updateServer() {
+        let btn = document.getElementById('updateServerBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Updating...';
+        
+        console.log(`updateServer #331: Starting server update`);
+        
+        fetch('/update-server', {
+            method: 'POST',
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(`updateServer #332: Update completed`, data);
+            toastr.success('Server updated successfully');
+            btn.innerHTML = '<i class="ph ph-check-circle"></i> Updated!';
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-arrow-circle-up"></i> Update Server';
+            }, 3000);
+        })
+        .catch(error => {
+            console.log(`updateServer #333: Update failed`, error);
+            toastr.error('Failed to update server');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph ph-arrow-circle-up"></i> Update Server';
+        });
+    }
     </script>
     <style>
     .qr-container {
@@ -343,6 +374,20 @@ sample qr code data
         color: #f44336;
         text-align: center;
         padding: 20px;
+    }
+
+    .update-btn {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+        margin-right: 20px;
     }
     </style>
 </body>

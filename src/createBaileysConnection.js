@@ -74,23 +74,9 @@ function ensureSessionDir(sessionDir) {
 
 async function startBaileysConnection(sessionId = 'default') {
     let sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
-    
-    // Check if session directory exists before proceeding
-    if (!fs.existsSync(sessionDir)) {
-        console.log(`startBaileysConnection #432: Session directory not found for ${sessionId}`);
-        throw new Error('Session directory not found');
-    }
-
-    // Check if auth files exist in the directory
-    let authFiles = fs.readdirSync(sessionDir);
-    if (!authFiles.length) {
-        console.log(`startBaileysConnection #433: No auth files found in session directory ${sessionId}`);
-        throw new Error('No authentication files found');
-    }
-
     let store = makeInMemoryStore(storeConfig);
     
-    // Rest of retry checking logic
+    // Check retry info
     let retryInfo = SESSION_RETRY_DELAYS.get(sessionId) || { count: 0, lastAttempt: 0 };
     let now = Date.now();
     
@@ -118,12 +104,12 @@ async function startBaileysConnection(sessionId = 'default') {
         
         // Create sessions directory if it doesn't exist
         if (!fs.existsSync(sessionDir)) {
-            console.log(`startBaileysConnection: Creating sessions directory at ${sessionDir}\n`);
+            console.log(`startBaileysConnection #544: Creating sessions directory at ${sessionDir}`);
             fs.mkdirSync(sessionDir, { recursive: true });
         }
 
-        // Load auth state
-        console.log(`startBaileysConnection: Loading auth state #231\n`);
+        // Load auth state - REMOVED auth files check
+        console.log(`startBaileysConnection #231: Loading auth state for ${sessionId}`);
         let { state, saveCreds } = await useMultiFileAuthState(sessionDir);
 
         // Create WA Socket connection
