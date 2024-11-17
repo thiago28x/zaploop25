@@ -130,6 +130,7 @@ async function createSession() {
             placeholder.innerHTML = 'Loading QR code...';
         }
 
+        // First create the session
         let response = await fetch('/start', {
             method: 'POST',
             headers: {
@@ -143,11 +144,43 @@ async function createSession() {
             throw new Error(errorData.message || 'Failed to create session');
         }
 
+        // Wait for QR code to be available
+        let maxAttempts = 10;
+        let attempts = 0;
+        let qrFound = false;
+
+        while (attempts < maxAttempts && !qrFound) {
+            console.log(`createSession #544: Attempting to fetch QR code, attempt ${attempts + 1}`);
+            try {
+                let qrResponse = await fetch(`/session-qr/${sessionId}`);
+                if (qrResponse.ok) {
+                    qrFound = true;
+                    let blob = await qrResponse.blob();
+                    let imageUrl = URL.createObjectURL(blob);
+                    
+                    if (qrImage && placeholder) {
+                        qrImage.src = imageUrl;
+                        qrImage.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        
+                        // Clean up the object URL after the image loads
+                        qrImage.onload = () => URL.revokeObjectURL(imageUrl);
+                    }
+                }
+            } catch (error) {
+                console.error(`createSession #545: Error: ${error}`);
+                if (placeholder) {
+                    placeholder.innerHTML = 'Error generating QR code';
+                }
+                toastr.error(error.message || 'Failed to create session');
+            }
+        }
+
         // Start checking for QR code
         startQRCheck(sessionId);
 
     } catch (error) {
-        console.error(`createSession #544: Error: ${error}`);
+        console.error(`createSession #546: Error: ${error}`);
         if (placeholder) {
             placeholder.innerHTML = 'Error generating QR code';
         }

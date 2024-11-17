@@ -94,37 +94,45 @@ baileysApp.post("/start", async (req, res) => {
             });
         }
 
-        // Create a new socket connection
-        let sock = await startBaileysConnection(sessionId);
-        
-        // Set up QR code event handler
-        sock.ev.on('connection.update', async ({ qr }) => {
-            if (qr) {
-                try {
-                    let qrImage = await QRCode.toDataURL(qr);
-                    
-                    // Store QR code in session
-                    if (sessions.has(sessionId)) {
-                        sessions.get(sessionId).qrCode = qrImage;
-                    }
-                    
-                    // Broadcast QR code to WebSocket clients
-                    if (wss) {
-                        wss.clients.forEach((client) => {
-                            if (client.readyState === WebSocket.OPEN) {
-                                client.send(JSON.stringify({
-                                    type: 'qr',
-                                    sessionId: sessionId,
-                                    qr: qrImage
-                                }));
+        // Create a promise that will resolve when QR code is generated
+        let qrPromise = new Promise((resolve, reject) => {
+            let timeout = setTimeout(() => {
+                reject(new Error('QR code generation timeout'));
+            }, 30000); // 30 second timeout
+
+            // Create a new socket connection
+            startBaileysConnection(sessionId).then(sock => {
+                sock.ev.on('connection.update', async ({ qr }) => {
+                    if (qr) {
+                        try {
+                            let qrImage = await QRCode.toDataURL(qr);
+                            
+                            // Store QR code in session
+                            if (sessions.has(sessionId)) {
+                                sessions.get(sessionId).qrCode = qrImage;
+                                clearTimeout(timeout);
+                                resolve();
                             }
-                        });
+                            
+                            // Broadcast QR code to WebSocket clients
+                            if (wss) {
+                                wss.clients.forEach((client) => {
+                                    if (client.readyState === WebSocket.OPEN) {
+                                        client.send(JSON.stringify({
+                                            type: 'qr',
+                                            sessionId: sessionId,
+                                            qr: qrImage
+                                        }));
+                                    }
+                                });
+                            }
+                            
+                        } catch (err) {
+                            console.error(`/start #545: Error generating QR: ${err}`);
+                        }
                     }
-                    
-                } catch (err) {
-                    console.error(`/start #545: Error generating QR: ${err}`);
-                }
-            }
+                });
+            });
         });
 
         res.status(200).send({ 
