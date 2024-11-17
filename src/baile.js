@@ -785,7 +785,7 @@ function initializeWebSocket() {
 
 let { exec } = require('child_process');
 
-app.post('/update-server', (req, res) => {
+baileysApp.post('/update-server', (req, res) => {
     let scriptPath = './src/updateserverfiles.sh';
     
     console.log(`[updateServer] Running update script at path: ${scriptPath} #544`);
