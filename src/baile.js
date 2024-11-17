@@ -41,24 +41,12 @@ async function startServer() {
     try {
         await restoreSessions();
         
+        // Initialize WebSocket before starting Express
+        initializeWebSocket();
+        
         baileysApp.listen(4001, () => {
             isStarting = false;
             console.log(`\n 🍪 BAILEYS SERVER:  \nstartServer: Baileys service running on port 4001\n`);
-            
-            // Initialize WebSocket server to listen on all interfaces
-            wss = new WebSocket.Server({ 
-                port: 4002,
-                host: '0.0.0.0'  // Listen on all network interfaces
-            });
-            console.log(`startServer #124: WebSocket server running on 209.145.62.86:4002`);
-            
-            wss.on('connection', (ws) => {
-                console.log(`WebSocket #125: Client connected`);
-                
-                ws.on('error', (error) => {
-                    console.log(`WebSocket #126: Error: ${error}`);
-                });
-            });
         });
     } catch (error) {
         console.error(`startServer: Error starting server: ${error}\n`);
@@ -86,51 +74,72 @@ baileysApp.get('/dashboard', (req, res) => {
 //start a new session
 baileysApp.post("/start", async (req, res) => {
     let { sessionId } = req.body;
-    console.log(`/create-connection #127: Creating session with ID: ${sessionId}`);
+    console.log(`/start #543: Creating session with ID: ${sessionId}`);
     
     try {
-        let qrPromise = new Promise((resolve, reject) => {
-            let timeout = setTimeout(() => {
-                reject(new Error('QR code generation timeout'));
-            }, 30000); // 30 seconds timeout
+        let sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
+        if (!fs.existsSync(sessionDir)) {
+            console.log(`/start #544: Creating new session directory for ${sessionId}`);
+            fs.mkdirSync(sessionDir, { recursive: true });
+        }
 
-            let client = startBaileysConnection(sessionId);
-            
-            client.ev.on('connection.update', async ({ qr }) => {
-                if (qr) {
-                    clearTimeout(timeout);
-                    try {
-                        // Generate PNG directly from QR data
-                        let qrImage = await QRCode.toDataURL(qr, {
-                            errorCorrectionLevel: 'H',
-                            margin: 1,
-                            scale: 8,
-                            width: 256
-                        });
-                        
-                        // Convert base64 to buffer
-                        let qrBuffer = Buffer.from(qrImage.split(',')[1], 'base64');
-                        
-                        resolve(qrBuffer);
-                    } catch (err) {
-                        reject(err);
-                    }
-                }
+        let files = fs.readdirSync(sessionDir);
+        let isNewSession = files.length === 0;
+
+        if (!isNewSession) {
+            return res.status(400).send({ 
+                error: "Session already exists",
+                message: "Please delete the existing session before creating a new one" 
             });
+        }
+
+        // Create a new socket connection
+        let sock = await startBaileysConnection(sessionId);
+        
+        // Set up QR code event handler
+        sock.ev.on('connection.update', async ({ qr }) => {
+            if (qr) {
+                try {
+                    let qrImage = await QRCode.toDataURL(qr);
+                    
+                    // Broadcast QR code to all connected WebSocket clients
+                    if (wss) {
+                        wss.clients.forEach((client) => {
+                            if (client.readyState === WebSocket.OPEN) {
+                                client.send(JSON.stringify({
+                                    type: 'qr',
+                                    sessionId: sessionId,
+                                    qr: qrImage
+                                }));
+                            }
+                        });
+                    }
+                    
+                    // Also store the QR code for HTTP endpoint access
+                    sessions.get(sessionId).qrCode = qrImage;
+                    
+                } catch (err) {
+                    console.error(`/start #545: Error generating QR: ${err}`);
+                }
+            }
         });
 
-        // Wait for QR code generation
-        let qrBuffer = await qrPromise;
-        
-        // Send QR code as PNG image
-        res.writeHead(200, {
-            'Content-Type': 'image/png',
-            'Content-Length': qrBuffer.length
+        res.status(200).send({ 
+            status: "success",
+            message: "Session initiated",
+            sessionId: sessionId
         });
-        res.end(qrBuffer);
-        
+
     } catch (error) {
-        console.error(`/create-connection #128: Error creating session: ${error}`);
+        console.error(`/start #546: Error creating session: ${error}`);
+        try {
+            let sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
+            if (fs.existsSync(sessionDir)) {
+                fs.rmSync(sessionDir, { recursive: true });
+            }
+        } catch (cleanupError) {
+            console.error(`/start #547: Cleanup error: ${cleanupError}`);
+        }
         res.status(500).send({ error: "Failed to create connection" });
     }
 });
@@ -662,6 +671,33 @@ baileysApp.get("/session-contacts-direct/:sessionId", async (req, res) => {
     } catch (error) {
         console.error(`/session-contacts-direct: Error: ${error}\n`);
         res.status(500).send({ error: "Failed to fetch contacts directly" });
+    }
+});
+
+// Add a new endpoint to get QR code via HTTP
+baileysApp.get("/qr/:sessionId", (req, res) => {
+    let { sessionId } = req.params;
+    console.log(`/qr #543: Fetching QR for session ${sessionId}`);
+    
+    try {
+        let session = sessions.get(sessionId);
+        if (!session || !session.qrCode) {
+            return res.status(404).send({ error: "QR code not found" });
+        }
+
+        // Send QR code as image
+        let qrImage = session.qrCode.split(',')[1];
+        let qrBuffer = Buffer.from(qrImage, 'base64');
+        
+        res.writeHead(200, {
+            'Content-Type': 'image/png',
+            'Content-Length': qrBuffer.length
+        });
+        res.end(qrBuffer);
+        
+    } catch (error) {
+        console.error(`/qr #544: Error serving QR: ${error}`);
+        res.status(500).send({ error: "Failed to serve QR code" });
     }
 });
 

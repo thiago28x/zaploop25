@@ -1,3 +1,45 @@
+let ws;
+let qrCheckInterval;
+
+function initializeWebSocket() {
+    ws = new WebSocket('ws://209.145.62.86:4002');
+    console.log(`initializeWebSocket #543: Attempting connection`);
+
+    ws.onopen = () => {
+        console.log(`initializeWebSocket #544: Connected successfully`);
+    };
+
+    ws.onmessage = (event) => {
+        try {
+            let data = JSON.parse(event.data);
+            console.log(`initializeWebSocket #545: Received message type: ${data.type}`);
+            
+            if (data.type === 'qr') {
+                // Update QR code display
+                let qrImage = document.getElementById('qr-image');
+                let placeholder = document.getElementById('qrcode-placeholder');
+                
+                if (qrImage && placeholder) {
+                    qrImage.src = data.qr;
+                    qrImage.style.display = 'block';
+                    placeholder.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error(`initializeWebSocket #546: Error processing message: ${error}`);
+        }
+    };
+
+    ws.onerror = (error) => {
+        console.error(`initializeWebSocket #547: WebSocket error: ${error}`);
+    };
+
+    ws.onclose = () => {
+        console.log(`initializeWebSocket #548: Connection closed, attempting reconnect in 5s`);
+        setTimeout(initializeWebSocket, 5000);
+    };
+}
+
 async function deleteSession(sessionId) {
     console.log(`deleteSession: sessionId: ${sessionId}\n`);
     
@@ -91,30 +133,18 @@ async function createSession() {
             body: JSON.stringify({ sessionId })
         });
 
-        if (response.ok) {
-            // Check if response is an image
-            let contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('image')) {
-                let blob = await response.blob();
-                let imageUrl = URL.createObjectURL(blob);
-                
-                // Display the QR code image
-                let qrImage = document.getElementById('qr-image');
-                qrImage.src = imageUrl;
-                qrImage.style.display = 'block';
-                document.getElementById('qrcode-placeholder').style.display = 'none';
-                
-                // Clean up the object URL after the image loads
-                qrImage.onload = () => URL.revokeObjectURL(imageUrl);
-            } else {
-                throw new Error('Invalid response format');
-            }
-        } else {
-            throw new Error(`Server responded with status: ${response.status}`);
+        if (!response.ok) {
+            let errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to create session');
         }
+
+        // Start checking for QR code via HTTP fallback
+        startQRCheck(sessionId);
+
     } catch (error) {
         console.error(`createSession #544: Error: ${error}`);
         document.getElementById('qrcode-placeholder').innerHTML = 'Error generating QR code';
+        toastr.error(error.message || 'Failed to create session');
     }
 }
 
