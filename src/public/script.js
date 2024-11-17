@@ -1,9 +1,41 @@
 let ws;
 let qrCheckInterval;
 
+document.addEventListener('DOMContentLoaded', () => {
+    console.log(`DOMContentLoaded #218: Initializing`);
+    initializeWebSocket();
+    updateSessionSelect();
+    showTab('chats');
+});
+
+function startQRCheck(sessionId) {
+    console.log(`startQRCheck #020: Starting QR check for session ${sessionId}`);
+    
+    // Clear any existing interval
+    if (qrCheckInterval) {
+        clearInterval(qrCheckInterval);
+    }
+
+    // Check immediately
+    checkQRCode(sessionId);
+
+    // Then check every 5 seconds
+    qrCheckInterval = setInterval(() => checkQRCode(sessionId), 5000);
+
+    // Stop checking after 2 minutes (when QR typically expires)
+    setTimeout(() => {
+        if (qrCheckInterval) {
+            clearInterval(qrCheckInterval);
+            console.log(`startQRCheck #544: Stopped QR check for session ${sessionId}`);
+            document.getElementById('qrcode-placeholder').innerHTML = 
+                'QR code expired. Please try creating a new session.';
+        }
+    }, 120000);
+}
+
 function initializeWebSocket() {
     ws = new WebSocket('ws://209.145.62.86:4002');
-    console.log(`initializeWebSocket #543: Attempting connection`);
+    console.log(`initializeWebSocket #003: Attempting connection`);
 
     ws.onopen = () => {
         console.log(`initializeWebSocket #544: Connected successfully`);
@@ -15,7 +47,6 @@ function initializeWebSocket() {
             console.log(`initializeWebSocket #545: Received message type: ${data.type}`);
             
             if (data.type === 'qr') {
-                // Update QR code display
                 let qrImage = document.getElementById('qr-image');
                 let placeholder = document.getElementById('qrcode-placeholder');
                 
