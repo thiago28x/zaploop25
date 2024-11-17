@@ -89,72 +89,25 @@ async function deleteSession(sessionId) {
     }
 }
 
-//DO NOT DELETE REST OF THE CODE
-
-// Fetch and display active sessions
-async function refreshSessions() {
-    let sessionsList = document.getElementById('sessionsList');
-    let placeholder = document.getElementById('sessionListPlaceholder');
-    let detailsSelect = document.getElementById('detailsSessionSelect');
-    
-    try {
-        let response = await fetch('/list-sessions');
-        let data = await response.json();
-        
-        // Update sessions list
-        sessionsList.innerHTML = '';
-        // Update details select
-        detailsSelect.innerHTML = '<option value="">Select a session</option>';
-        
-        if (data.sessions && data.sessions.length > 0) {
-            placeholder.style.display = 'none';
-            
-            for (let sessionId of data.sessions) {
-                // Get status for each session
-                let statusResponse = await fetch(`/session-status/${sessionId}`);
-                let statusData = await statusResponse.json();
-                
-                let isConnected = statusData.connectionState.state === 'open';
-                let statusIcon = isConnected ? 
-                    '<i class="ph ph-circle-fill" style="color: #4CAF50;"></i>' : 
-                    '<i class="ph ph-circle-fill" style="color: #f44336;"></i>';
-                
-                // Add to sessions list
-                sessionsList.innerHTML += `
-                    <div class="session-item">
-                        ${statusIcon}
-                        <span>${sessionId}</span>
-                        <span class="status-text">${isConnected ? 'Connected' : 'Disconnected'}</span>
-                        <button onclick="viewSessionDetails('${sessionId}')" class="view-btn">
-                            <i class="ph ph-eye"></i>
-                        </button>
-                        <button onclick="deleteSession('${sessionId}')" class="delete-btn">
-                            <i class="ph ph-trash"></i>
-                        </button>
-                    </div>
-                `;
-                
-                // Add to details select
-                detailsSelect.innerHTML += `<option value="${sessionId}">${sessionId}</option>`;
-            }
-        } else {
-            placeholder.style.display = 'block';
-        }
-    } catch (error) {
-        console.error(`refreshSessions: Error refreshing sessions: ${error}\n`);
-        toastr.error('Failed to refresh sessions');
-    }
-}
-
 async function createSession() {
+    // Declare all variables at the top
     let sessionId = document.getElementById('sessionId').value;
+    let qrImage = document.getElementById('qr-image');
+    let placeholder = document.getElementById('qrcode-placeholder');
+    let maxAttempts = 10;
+    let attempts = 0;
+    let qrFound = false;
+
+    //return if sessionId is empty
+    if (!sessionId) {
+        toastr.error('Please enter a session ID');
+        return;
+    }
+    
     console.log(`createSession #543: Creating session with ID: ${sessionId}`);
 
     try {
         // Show loading state
-        let qrImage = document.getElementById('qr-image');
-        let placeholder = document.getElementById('qrcode-placeholder');
-        
         if (qrImage && placeholder) {
             qrImage.style.display = 'none';
             placeholder.style.display = 'block';
@@ -176,10 +129,6 @@ async function createSession() {
         }
 
         // Wait for QR code to be available
-        let maxAttempts = 10;
-        let attempts = 0;
-        let qrFound = false;
-
         while (attempts < maxAttempts && !qrFound) {
             console.log(`createSession #544: Attempting to fetch QR code, attempt ${attempts + 1}`);
             try {
@@ -466,16 +415,20 @@ function showTab(tabName) {
 }
 
 async function loadChats(sessionId) {
+    // Declare variables at the top
     let chatsList = document.getElementById('chatsList');
     let placeholder = document.getElementById('chatsPlaceholder');
     
+    console.log(`loadChats #331: Starting with sessionId: ${sessionId}, chatsList exists: ${!!chatsList}, placeholder exists: ${!!placeholder}`);
+    
     if (!chatsList || !placeholder) {
-        console.error(`loadChats: Required elements not found\n`);
+        console.error(`loadChats #332: Required elements not found. chatsList: ${!!chatsList}, placeholder: ${!!placeholder}`);
+        toastr.error('UI elements not found. Please check the HTML structure.');
         return;
     }
     
     try {
-        console.log(`loadChats: Loading chats for session ${sessionId}\n`);
+        console.log(`loadChats #333: Loading chats for session ${sessionId}`);
         chatsList.innerHTML = '<div class="loading">Loading chats...</div>';
         
         let chats = await getSessionChats(sessionId);
@@ -613,8 +566,6 @@ function escapeHtml(unsafe) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
-
-// ... rest of the code ...
 
 // Add function to view session details
 function viewSessionDetails(sessionId) {

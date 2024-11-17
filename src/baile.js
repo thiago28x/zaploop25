@@ -142,7 +142,7 @@ baileysApp.post("/start", async (req, res) => {
         });
 
     } catch (error) {
-        console.error(`/start #546: Error creating session: ${error}`);
+        console.error(`/start #98564: Error creating session: ${error}`);
         res.status(500).send({ error: "Failed to create connection" });
     }
 });
