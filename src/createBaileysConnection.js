@@ -397,14 +397,24 @@ async function cleanupSession(sessionId, sock, sessionDir) {
         
         // Close socket
         if (sock) {
-            sock.end();
-            sock.removeAllListeners();
+            // Remove all event listeners from sock.ev
+            if (sock.ev) {
+                sock.ev.removeAllListeners();
+            }
+            // Close the socket connection
+            if (typeof sock.end === 'function') {
+                sock.end();
+            } else if (typeof sock.close === 'function') {
+                sock.close();
+            } else if (typeof sock.logout === 'function') {
+                await sock.logout();
+            }
         }
         
         // Remove session directory
         if (fs.existsSync(sessionDir)) {
             await fs.promises.rm(sessionDir, { recursive: true });
-            console.log(`cleanupSession: Deleted session directory for ${sessionId}\n`);
+            console.log(`cleanupSession #876: Deleted session directory for ${sessionId}`);
         }
     } catch (error) {
         console.error(`cleanupSession #544: Error cleaning up session ${sessionId}: ${error}`);

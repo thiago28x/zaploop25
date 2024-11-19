@@ -1,6 +1,62 @@
 let ws;
 let qrCheckInterval;
 
+// Fetch and display active sessions
+async function refreshSessions() {
+    let sessionsList = document.getElementById('sessionsList');
+    let placeholder = document.getElementById('sessionListPlaceholder');
+    let detailsSelect = document.getElementById('detailsSessionSelect');
+    
+    try {
+        let response = await fetch('/list-sessions');
+        let data = await response.json();
+        
+        // Update sessions list
+        sessionsList.innerHTML = '';
+        // Update details select
+        detailsSelect.innerHTML = '<option value="">Select a session</option>';
+        
+        if (data.sessions && data.sessions.length > 0) {
+            placeholder.style.display = 'none';
+            
+            for (let sessionId of data.sessions) {
+                // Get status for each session
+                let statusResponse = await fetch(`/session-status/${sessionId}`);
+                let statusData = await statusResponse.json();
+                
+                let isConnected = statusData.connectionState.state === 'open';
+                let statusIcon = isConnected ? 
+                    '<i class="ph ph-circle-fill" style="color: #4CAF50;"></i>' : 
+                    '<i class="ph ph-circle-fill" style="color: #f44336;"></i>';
+                
+                // Add to sessions list
+                sessionsList.innerHTML += `
+                    <div class="session-item">
+                        ${statusIcon}
+                        <span>${sessionId}</span>
+                        <span class="status-text">${isConnected ? 'Connected' : 'Disconnected'}</span>
+                        <button onclick="viewSessionDetails('${sessionId}')" class="view-btn">
+                            <i class="ph ph-eye"></i>
+                        </button>
+                        <button onclick="deleteSession('${sessionId}')" class="delete-btn">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                `;
+                
+                // Add to details select
+                detailsSelect.innerHTML += `<option value="${sessionId}">${sessionId}</option>`;
+            }
+        } else {
+            placeholder.style.display = 'block';
+        }
+    } catch (error) {
+        console.error(`refreshSessions: Error refreshing sessions: ${error}\n`);
+        toastr.error('Failed to refresh sessions');
+    }
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log(`DOMContentLoaded #218: Initializing`);
     initializeWebSocket();
@@ -267,13 +323,29 @@ async function getServerStatus() {
 getServerStatus()
 
 function updateResourceBar(barId, used, total) {
+    // Declare variables at the top
+    let convertToGB = (value) => {
+        let numValue = parseFloat(value);
+        if (value.includes('MB')) {
+            return numValue / 1024;
+        }
+        return numValue;
+    };
+    let usedGB = convertToGB(used);
+    let totalGB = convertToGB(total);
+    let percentage = (usedGB / totalGB) * 100;
+    
+    console.log(`updateResourceBar #754: Updating ${barId} - Used: ${usedGB}GB, Total: ${totalGB}GB, Percentage: ${percentage}%`);
+    
     let bar = document.getElementById(barId);
     let fill = bar.querySelector('.bar-fill');
     let text = bar.querySelector('.bar-text');
 
-    let percentage = (parseFloat(used) / parseFloat(total)) * 100;
+    // Update the bar fill
     fill.style.width = `${percentage}%`;
-    text.textContent = `${used} / ${total}`;
+    
+    // Format the text to include percentage
+    text.textContent = `${used} / ${total} (${percentage.toFixed(1)}%)`;
 }
 
 
