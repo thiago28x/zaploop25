@@ -808,7 +808,7 @@ let { exec } = require('child_process');
 baileysApp.post('/update-server', (req, res) => {
     console.log('Current working directory:', process.cwd());
 
-    let scriptPath = path.resolve(__dirname, './src/updateserverfiles.sh');
+    let scriptPath = path.resolve(__dirname, './updateserverfiles.sh');
 console.log('Resolved script path:', scriptPath);
 
     // Variables at the top
