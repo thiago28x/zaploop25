@@ -49,8 +49,8 @@
             <div id="sessionListPlaceholder">
                 <p>No active sessions</p>
             </div>
-            <span hoverable id="refresh-sessions" onclick="refreshSessions()" style="cursor: pointer;">
-                <i class="ph ph-arrows-clockwise"></i> Refresh
+            <span hoverable id="refresh-sessions" class="hoverable" onclick="refreshSessions()" style="cursor: pointer;">
+                <i class="ph ph-arrows-clockwise"></i> Get Sessions
             </span>
         </div>
 
@@ -188,7 +188,7 @@ sample qr code data
     -->
     <!-- refresh button to call again -->
     <div id="serverStatus">
-        <div class="row" >
+        <div class="col" >
         <div class="resource">
             <div class="resource-name">RAM</div>
             <span id="ramUsed"></span> / <span id="ramTotal"></span>
@@ -214,7 +214,7 @@ sample qr code data
             </div>
         </div>
     </div>
-    <span hoverable id="refresh-server-status" onclick="getServerStatus()" style="cursor: pointer;">
+    <span hoverable id="refresh-server-status" class="hoverable" onclick="getServerStatus()" style="cursor: pointer;">
         <i class="ph ph-arrows-clockwise"></i> Refresh Status
     </span>
 

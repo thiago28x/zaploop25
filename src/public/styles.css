@@ -13,7 +13,7 @@
     color: var(--hover-color);
 }
 
-.hoverable {
+.hoverable, .hover {
     cursor: pointer;
     background-color: var(--button-color);
     color: var(--hover-color);
@@ -25,6 +25,10 @@ body {
     padding: 0px;
     background-color: var(--background-color);
     color: var(--text-color);
+}
+
+span {
+    font-size: 13px;
 }
 
 .header {
@@ -175,6 +179,12 @@ button:hover {
     justify-content: space-between;
     margin-bottom: 10px;
     flex-direction: row;
+}
+.col {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    flex-direction: column;
 }
 .resource {
     margin: 5px 0;
