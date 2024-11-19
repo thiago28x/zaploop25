@@ -263,45 +263,62 @@ baileysApp.get("/list-sessions", (req, res) => {
 });
 
 baileysApp.delete("/session/:sessionId", async (req, res) => {
-    let { sessionId } = req.params;
+    const { sessionId } = req.params;
+    const sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
+    const storeFile = path.join(sessionDir, 'store.json');
+    
     console.log(`deleteSession #543: Attempting to delete session: ${sessionId}`);
     
     try {
+        // Ensure session directory exists
+        if (!fs.existsSync(sessionDir)) {
+            console.log(`deleteSession #544: Session directory doesn't exist: ${sessionDir}`);
+            return res.status(404).send({ 
+                error: "Session not found",
+                details: "Session directory does not exist"
+            });
+        }
+
         let client = getSession(sessionId);
-        if (!client) {
-            console.log(`deleteSession #544: No session found for ID: ${sessionId}`);
-            return res.status(404).send({ error: "Session not found" });
-        }
-        
-        // Safely close the connection
-        try {
-            if (client.ws && client.ws.readyState !== WebSocket.CLOSED) {
-                await client.end();
+        if (client) {
+            // Safely close the connection if client exists
+            try {
+                if (client.ws && client.ws.readyState !== WebSocket.CLOSED) {
+                    await client.end();
+                    console.log(`deleteSession #545: Closed connection for session: ${sessionId}`);
+                }
+            } catch (closeError) {
+                console.log(`deleteSession #546: Non-critical error while closing connection: ${closeError}`);
             }
-        } catch (closeError) {
-            console.log(`deleteSession #545: Non-critical error while closing connection: ${closeError}`);
-            // Continue with deletion even if connection close fails
+            
+            // Remove from sessions map
+            sessions.delete(sessionId);
         }
         
-        // Remove from sessions map
-        sessions.delete(sessionId);
-        
-        // Delete session directory if exists
-        let sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
-        if (fs.existsSync(sessionDir)) {
-            fs.rmSync(sessionDir, { recursive: true });
-            console.log(`deleteSession #546: Deleted session directory: ${sessionDir}`);
+        // Delete store.json if it exists
+        if (fs.existsSync(storeFile)) {
+            fs.unlinkSync(storeFile);
+            console.log(`deleteSession #547: Deleted store file: ${storeFile}`);
         }
+        
+        // Delete session directory
+        fs.rmSync(sessionDir, { recursive: true, force: true });
+        console.log(`deleteSession #548: Deleted session directory: ${sessionDir}`);
         
         res.send({ 
             status: "success", 
-            message: "Session deleted successfully" 
+            message: "Session deleted successfully",
+            details: {
+                sessionId,
+                directoryRemoved: true
+            }
         });
     } catch (error) {
-        console.error(`deleteSession #547: Error deleting session: ${error}`);
+        console.error(`deleteSession #549: Error deleting session: ${error}`);
         res.status(500).send({ 
             error: "Failed to delete session",
-            details: error.message 
+            details: error.message,
+            sessionId
         });
     }
 });
@@ -789,8 +806,12 @@ function initializeWebSocket() {
 let { exec } = require('child_process');
 
 baileysApp.post('/update-server', (req, res) => {
+    console.log('Current working directory:', process.cwd());
+
+    let scriptPath = path.resolve(__dirname, './src/updateserverfiles.sh');
+console.log('Resolved script path:', scriptPath);
+
     // Variables at the top
-    const scriptPath = './src/updateserverfiles.sh';
     let updateResult = null;
     
     console.log(`[updateServer] Running update script at path: ${scriptPath} #544`);

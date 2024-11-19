@@ -324,7 +324,7 @@ async function getServerStatus() {
     
     console.log(`getServerStatus #876: Fetching server status`);
     
-    try {
+
         response = await fetch('/server-status');
         data = await response.json();
 
@@ -336,15 +336,7 @@ async function getServerStatus() {
         } else {
             throw new Error('Invalid server status data format');
         }
-    } catch (error) {
-        console.error(`getServerStatus #877: Error fetching server status: ${error}`);
-        // Only use toastr if it's available
-        if (typeof toastr !== 'undefined') {
-            toastr.error('Failed to fetch server status');
-        } else {
-            console.error(`getServerStatus #878: Toastr not available for error notification`);
-        }
-    }
+
 }
 
 // Wait for DOM content to be loaded before initializing
@@ -360,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     getServerStatus();
     // Optionally set up periodic updates
-    setInterval(getServerStatus, 30000); // Update every 30 seconds
+    //setInterval(getServerStatus, 30000); // Update every 30 seconds
 });
 
 function updateResourceBar(barId, used, total) {
@@ -387,6 +379,7 @@ function updateResourceBar(barId, used, total) {
     
     // Format the text to include percentage
     text.textContent = `${used} / ${total} (${percentage.toFixed(1)}%)`;
+
 }
 
 
