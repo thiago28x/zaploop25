@@ -28,8 +28,8 @@ const storeConfig = {
 };
 
 // Add at the top with other constants
-let QR_TIMEOUT = 3 * 60 * 1000; // 3 minutes in milliseconds
-let MAX_SESSION_RETRIES = 3;
+let QR_TIMEOUT = 2 * 60 * 1000; // 2 minutes in milliseconds
+let MAX_SESSION_RETRIES = 2;
 let SESSION_RETRY_DELAYS = new Map(); // Track retry attempts and timestamps
 
 // Add function to restore sessions on startup
@@ -387,7 +387,17 @@ function getSession(sessionId = 'default') {
 
 // Modify cleanupSession to also clean up retry tracking
 async function cleanupSession(sessionId, sock, sessionDir) {
-    console.log(`cleanupSession #543: Starting cleanup for session ${sessionId}`);
+    // Variables at the top
+    const session = sessions.get(sessionId);
+    const connectionState = connectionStates.get(sessionId);
+    
+    console.log(`cleanupSession #543: Starting cleanup check for session ${sessionId}`);
+    
+    // Check if session is active/connected
+    if (connectionState?.state === 'open' || session?.sock?.user) {
+        console.log(`cleanupSession #778: Skipping cleanup - Session ${sessionId} is still active`);
+        return false;
+    }
     
     try {
         // Remove from all tracking maps
@@ -416,8 +426,11 @@ async function cleanupSession(sessionId, sock, sessionDir) {
             await fs.promises.rm(sessionDir, { recursive: true });
             console.log(`cleanupSession #876: Deleted session directory for ${sessionId}`);
         }
+        
+        return true;
     } catch (error) {
         console.error(`cleanupSession #544: Error cleaning up session ${sessionId}: ${error}`);
+        return false;
     }
 }
 
