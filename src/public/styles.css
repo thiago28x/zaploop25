@@ -5,6 +5,18 @@
     --card-background-color: #2f3136;
     --border-color: #202225;
     --hover-color: #5865f2;
+    --button-color: rgb(45, 111, 47);
+}
+
+.hoverable:hover {
+    background-color: var(--button-color);
+    color: var(--hover-color);
+}
+
+.hoverable {
+    cursor: pointer;
+    background-color: var(--button-color);
+    color: var(--hover-color);
 }
 
 body {

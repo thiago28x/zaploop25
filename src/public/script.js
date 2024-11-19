@@ -319,19 +319,49 @@ async function updateSessionStatus(sessionId) {
 
 
 async function getServerStatus() {
+    // Declare variables at the top
+    let response, data;
+    
+    console.log(`getServerStatus #876: Fetching server status`);
+    
     try {
-        let response = await fetch('/server-status');
-        let data = await response.json();
+        response = await fetch('/server-status');
+        data = await response.json();
 
-        updateResourceBar('ramBar', data.ram.used, data.ram.total);
-        updateResourceBar('cpuBar', data.cpu.used, data.cpu.total);
-        updateResourceBar('diskBar', data.disk.used, data.disk.total);
+        // Check if data contains the expected properties
+        if (data && data.ram && data.cpu && data.disk) {
+            updateResourceBar('ramBar', data.ram.used, data.ram.total);
+            updateResourceBar('cpuBar', data.cpu.used, data.cpu.total);
+            updateResourceBar('diskBar', data.disk.used, data.disk.total);
+        } else {
+            throw new Error('Invalid server status data format');
+        }
     } catch (error) {
-        console.error('Error fetching server status:', error);
-        toastr.error('Failed to fetch server status');
+        console.error(`getServerStatus #877: Error fetching server status: ${error}`);
+        // Only use toastr if it's available
+        if (typeof toastr !== 'undefined') {
+            toastr.error('Failed to fetch server status');
+        } else {
+            console.error(`getServerStatus #878: Toastr not available for error notification`);
+        }
     }
 }
-getServerStatus()
+
+// Wait for DOM content to be loaded before initializing
+document.addEventListener('DOMContentLoaded', () => {
+    console.log(`DOMContentLoaded #879: Initializing server status check`);
+    // Initialize toastr if needed
+    if (typeof toastr !== 'undefined') {
+        toastr.options = {
+            closeButton: true,
+            progressBar: true,
+            timeOut: 3000
+        };
+    }
+    getServerStatus();
+    // Optionally set up periodic updates
+    setInterval(getServerStatus, 30000); // Update every 30 seconds
+});
 
 function updateResourceBar(barId, used, total) {
     // Declare variables at the top

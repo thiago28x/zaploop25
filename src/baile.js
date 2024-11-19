@@ -448,9 +448,12 @@ baileysApp.get('/health', (req, res) => {
 
 // Define the getServerStatus function
 function getServerStatus(req, res) {
-    const diskInfo = fs.statSync('/'); // Ensure diskInfo is defined here
-    const totalDisk = diskInfo.blocks * diskInfo.bsize;
-    const freeDisk = diskInfo.bfree * diskInfo.bsize;
+    const diskInfo = fs.statSync('/');
+    
+    // Add safety checks
+    const blkSize = diskInfo.blksize || 4096; // Use 4096 as fallback block size
+    const totalDisk = (diskInfo.blocks || 0) * blkSize;
+    const freeDisk = (diskInfo.bfree || 0) * blkSize;
     const usedDisk = totalDisk - freeDisk;
 
     // Convert bytes to human readable format
