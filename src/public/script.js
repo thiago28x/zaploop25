@@ -359,7 +359,8 @@ function updateResourceBar(barId, used, total) {
     // Declare variables at the top
     let convertToGB = (value) => {
         let numValue = parseFloat(value);
-        if (value.includes('MB')) {
+        let strValue = String(value); // Convert to string for includes check
+        if (strValue.includes('MB')) {
             return numValue / 1024;
         }
         return numValue;
