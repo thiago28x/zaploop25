@@ -1,6 +1,17 @@
 let ws;
 let qrCheckInterval;
 
+function updateServer() {
+    fetch('/update-server', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            toastr[data.type](data.message);
+        })
+        .catch(error => {
+            toastr.error('Failed to update server: ' + error.message);
+        });
+}
+
 // Fetch and display active sessions
 async function refreshSessions() {
     let sessionsList = document.getElementById('sessionsList');

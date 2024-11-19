@@ -786,7 +786,9 @@ function initializeWebSocket() {
 let { exec } = require('child_process');
 
 baileysApp.post('/update-server', (req, res) => {
-    let scriptPath = './src/updateserverfiles.sh';
+    // Variables at the top
+    const scriptPath = './src/updateserverfiles.sh';
+    let updateResult = null;
     
     console.log(`[updateServer] Running update script at path: ${scriptPath} #544`);
     
@@ -802,15 +804,50 @@ baileysApp.post('/update-server', (req, res) => {
         
         console.log(`[updateServer] Update script output: ${stdout} #546`);
         
-        if (stderr) {
-            console.log(`[updateServer] Script stderr: ${stderr} #547`);
+        try {
+            // Extract the JSON result from stdout
+            const resultMatch = stdout.match(/UPDATE_RESULT:({.*})/);
+            if (resultMatch) {
+                updateResult = JSON.parse(resultMatch[1]);
+            }
+
+            let message = '';
+            let type = 'info';
+
+            if (updateResult) {
+                if (updateResult.waifu.updated || updateResult.baileys.updated) {
+                    message = 'Updates installed:\n';
+                    type = 'success';
+                    if (updateResult.waifu.updated) {
+                        message += '- Waifu: ' + updateResult.waifu.message + '\n';
+                    }
+                    if (updateResult.baileys.updated) {
+                        message += '- Baileys: ' + updateResult.baileys.message;
+                    }
+                } else {
+                    message = 'All repositories are up to date';
+                    type = 'info';
+                }
+            } else {
+                message = 'Update completed but couldn\'t parse results';
+                type = 'warning';
+            }
+
+            res.json({ 
+                success: true, 
+                message: message,
+                type: type,
+                details: updateResult
+            });
+        } catch (parseError) {
+            console.log(`[updateServer] Error parsing update result: ${parseError} #547`);
+            res.json({ 
+                success: true, 
+                message: 'Update completed but couldn\'t parse results',
+                type: 'warning',
+                output: stdout 
+            });
         }
-        
-        res.json({ 
-            success: true, 
-            message: 'Server update completed',
-            output: stdout 
-        });
     });
 });
 
