@@ -70,7 +70,7 @@ async function refreshSessions() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log(`DOMContentLoaded #000000000002: Initializing`);
+    console.log(`DOMContentLoaded #000000000002: Initializing  😁`);
     initializeWebSocket();
     updateSessionSelect();
     showTab('chats');
