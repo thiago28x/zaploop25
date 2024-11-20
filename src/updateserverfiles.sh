@@ -2,7 +2,7 @@ echo "\n\n\n  Starting update... \n\n\n\"
 cd ~
 cd wd/waifu
 echo "Checking wd/waifu repository... #231"
-waifu_output=$(git pull)
+waifu_output=$(git pull origin master)
 echo "wd/waifu pull result: $waifu_output #232"
 
 waifu_updated=false
@@ -18,7 +18,7 @@ fi
 cd ~
 cd ~/baileys/Baileys
 echo "Checking baileys/Baileys repository... #236"
-baileys_output=$(git pull)
+baileys_output=$(git pull origin master)
 echo "baileys/Baileys pull result: $baileys_output #237"
 
 baileys_updated=false
