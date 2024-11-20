@@ -793,3 +793,104 @@ async function checkQRCode(sessionId) {
         }
     }
 }
+
+let apiserverport = 3000;
+
+//blocked phones
+async function getBlockedPhones() {
+    // Declare variables at the top
+    let blockedPhonesList = document.getElementById('blockedPhonesList');
+    
+    console.log(`getBlockedPhones #765: Fetching blocked phones list`);
+    
+    try {
+        let response = await fetch(`http://${ipAddress}:${apiserverport}/blocked-phones`);
+        let data = await response.json();
+        
+        // Clear existing list
+        blockedPhonesList.innerHTML = '';
+        
+        if (data && data.length > 0) {
+            data.forEach(phone => {
+                blockedPhonesList.innerHTML += `
+                    <div class="blocked-phone-item">
+                        <i class="ph ph-phone-x"></i>
+                        <span>${phone}</span>
+                        <button onclick="unblockPhone('${phone}')" class="unblock-btn">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                `;
+            });
+        } else {
+            blockedPhonesList.innerHTML = '<div class="no-blocked">No blocked phones</div>';
+        }
+    } catch (error) {
+        console.error(`getBlockedPhones #766: Error fetching blocked phones: ${error}`);
+        toastr.error('Failed to fetch blocked phones');
+    }
+}
+
+async function blockPhone() {
+    // Declare variables at the top
+    let phoneNumber = document.getElementById('blockedPhoneNumber').value.trim();
+    
+    console.log(`blockPhone #432: Attempting to block phone: ${phoneNumber}`);
+    
+    if (!phoneNumber) {
+        toastr.error('Please enter a phone number');
+        return;
+    }
+
+    try {
+        let response = await fetch(`http://${ipAddress}:${apiserverport}/blockuser`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userPhone: phoneNumber })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to block phone');
+        }
+
+        toastr.success(`Phone number ${phoneNumber} blocked successfully`);
+        document.getElementById('blockedPhoneNumber').value = '';
+        
+        await getBlockedPhones();
+    } catch (error) {
+        console.error(`blockPhone #433: Error blocking phone: ${error}`);
+        toastr.error('Failed to block phone number');
+    }
+}
+
+// Similarly, update unblockPhone and getBlockedPhones functions
+async function unblockPhone(phoneNumber) {
+    console.log(`unblockPhone #544: Attempting to unblock phone: ${phoneNumber}`);
+    
+    try {
+        let response = await fetch(`http://${ipAddress}:${apiserverport}/unblockuser`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userPhone: phoneNumber })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to unblock phone');
+        }
+
+        toastr.success(`Phone number ${phoneNumber} unblocked successfully`);
+        
+        await getBlockedPhones();
+    } catch (error) {
+        console.error(`unblockPhone #545: Error unblocking phone: ${error}`);
+        toastr.error('Failed to unblock phone number');
+    }
+}
+
+// Load blocked phones when page loads
+document.addEventListener('DOMContentLoaded', getBlockedPhones);
+

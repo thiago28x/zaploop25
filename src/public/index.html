@@ -166,6 +166,41 @@ sample qr code data
                 height: 256
             }); -->
 
+<!-- get list of blocked phones -->
+ <div id="blockedPhones">
+    <div class="col" >
+        <h2><i class="ph ph-phone-slash"></i> Blocked Phones</h2>
+        <div id="blockedPhonesList"></div>
+    </div>
+    <!-- refresh button -->
+    <span hoverable id="refresh-blocked-phones" class="" onclick="getBlockedPhones()" style="cursor: pointer;">
+        <i class="ph ph-arrows-clockwise"></i> Refresh
+    </span> 
+    <!-- integer input phone number -->
+    <div class="form-group">
+        <input type="text" id="blockedPhoneNumber" placeholder="Enter phone number">
+        <button onclick="blockPhone()">Block Phone</button>
+    </div>
+
+    <!-- 
+//POST route to block a user
+app.post('/blockuser', (req, res) => {
+    let userPhone = req.body.userPhone;
+
+    //add to blockedUsers array
+    blockedUsers.push(userPhone);
+
+    //also add to violationTracker
+    violationTracker.set(userPhone, { count: 0, lastViolation: Date.now() });
+
+    //log blocked user
+    console.log(`requestHandler.blockuser #1567: Blocking user ${userPhone}`);
+
+    fs.appendFileSync(blockedUsersPath, `${userPhone}\n`);
+    res.sendStatus(200);
+});
+ -->
+</div>
 
 
  
