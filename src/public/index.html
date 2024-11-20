@@ -66,6 +66,9 @@
             <button onclick="updateSessionSelect()" class="refresh-btn">
                 <i class="ph ph-arrows-clockwise"></i> Refresh
             </button>
+            <button onclick="reconnectSession()" class="reconnect-btn">
+                <i class="ph ph-plug"></i> Reconnect
+            </button>
         </div>
 
         <!-- Tabs -->
@@ -165,28 +168,7 @@ sample qr code data
 
 
 
-    <!-- server status
-       res.send({
-        status: "success",
-        ram: {
-            total: formatBytes(totalRAM),
-            used: formatBytes(usedRAM), 
-            free: formatBytes(freeRAM)
-        },
-        cpu: {
-            total: cpuCount,
-            used: cpuUsage.toFixed(2),
-            free: cpuFree.toFixed(2)
-        },
-        disk: {
-            total: formatBytes(totalDisk),
-            used: formatBytes(usedDisk),
-            free: formatBytes(freeDisk)
-        }
-    }); 
-    draw a health bar for each resource.
-    -->
-    <!-- refresh button to call again -->
+ 
     <div id="serverStatus">
         <div class="col" >
         <div class="resource">

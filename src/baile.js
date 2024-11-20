@@ -875,6 +875,93 @@ console.log('Resolved script path:', scriptPath);
     });
 });
 
+baileysApp.post("/reconnect/:sessionId", async (req, res) => {
+    const { sessionId } = req.params;
+    
+    // Add input validation
+    if (!sessionId) {
+        console.log(`reconnectSession #764: Missing sessionId parameter`);
+        return res.status(400).send({
+            error: "Missing parameter",
+            details: "sessionId is required"
+        });
+    }
+    
+    console.log(`reconnectSession #765: Attempting to reconnect session: ${sessionId}`);
+    
+    try {
+        // Check if session directory exists
+        const sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
+        if (!fs.existsSync(sessionDir)) {
+            console.log(`reconnectSession #766: Session directory not found: ${sessionDir}`);
+            return res.status(404).send({
+                error: "Session not found",
+                details: "No session data found for reconnection"
+            });
+        }
+
+        // If there's an existing connection, close it first
+        let existingSession = getSession(sessionId);
+        if (existingSession) {
+            try {
+                await existingSession.end();
+                sessions.delete(sessionId);
+                console.log(`reconnectSession #767: Closed existing session: ${sessionId}`);
+            } catch (err) {
+                console.log(`reconnectSession #768: Error closing existing session: ${err}`);
+            }
+        }
+
+        // Attempt to create new connection using existing auth data
+        console.log(`reconnectSession #769: Starting new connection for: ${sessionId}`);
+        const sock = await startBaileysConnection(sessionId);
+
+        // Wait for connection update
+        const connectionResult = await new Promise((resolve) => {
+            const timeout = setTimeout(() => {
+                resolve({ success: false, reason: 'timeout' });
+            }, 15000); // 15 second timeout
+
+            sock.ev.on('connection.update', ({ connection }) => {
+                if (connection === 'open') {
+                    clearTimeout(timeout);
+                    resolve({ success: true });
+                } else if (connection === 'close') {
+                    clearTimeout(timeout);
+                    resolve({ success: false, reason: 'closed' });
+                }
+            });
+        });
+
+        if (connectionResult.success) {
+            console.log(`reconnectSession #770: Successfully reconnected session: ${sessionId}`);
+            res.send({
+                status: "success",
+                message: "Session reconnected successfully",
+                sessionId
+            });
+        } else {
+            console.log(`reconnectSession #771: Failed to reconnect session: ${connectionResult.reason}`);
+            res.status(500).send({
+                error: "Reconnection failed",
+                reason: connectionResult.reason,
+                sessionId
+            });
+        }
+
+    } catch (error) {
+        console.error(`reconnectSession #772: Error during reconnection: ${error}`);
+        res.status(500).send({
+            error: "Failed to reconnect",
+            details: error.message,
+            sessionId
+        });
+    } finally {
+        // Add cleanup if needed
+        clearTimeout(timeout); // Make sure to declare timeout in wider scope
+    }
+});
+
 
 startServer();
 

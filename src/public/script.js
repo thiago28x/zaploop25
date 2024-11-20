@@ -1,5 +1,6 @@
 let ws;
 let qrCheckInterval;
+const ipAddress = '209.145.62.86';
 
 function updateServer() {
     fetch('/update-server', { method: 'POST' })
@@ -75,9 +76,25 @@ document.addEventListener('DOMContentLoaded', () => {
     showTab('chats');
 });
 
-function startQRCheck(sessionId) {
+async function startQRCheck(sessionId) {
+    // Declare variables at the top
+    let statusResponse, statusData;
+
     console.log(`startQRCheck #020: Starting QR check for session ${sessionId}`);
     
+    // Check if session is already connected
+    try {
+        statusResponse = await fetch(`/session-status/${sessionId}`);
+        statusData = await statusResponse.json();
+        
+        if (statusData.connectionState.state === 'open') {
+            console.log(`startQRCheck #021: Session ${sessionId} is already connected, skipping QR check`);
+            return;
+        }
+    } catch (error) {
+        console.error(`startQRCheck #022: Error checking session status: ${error}`);
+    }
+
     // Clear any existing interval
     if (qrCheckInterval) {
         clearInterval(qrCheckInterval);
@@ -87,9 +104,8 @@ function startQRCheck(sessionId) {
     checkQRCode(sessionId);
 
     // Then check every 5 seconds
-    qrCheckInterval = setInterval(() => checkQRCode(sessionId), 5000);
+    qrCheckInterval = setInterval(() => checkQRCode(sessionId), 10000);
 
-    // Stop checking after 2 minutes (when QR typically expires)
     setTimeout(() => {
         if (qrCheckInterval) {
             clearInterval(qrCheckInterval);
@@ -97,11 +113,11 @@ function startQRCheck(sessionId) {
             document.getElementById('qrcode-placeholder').innerHTML = 
                 'QR code expired. Please try creating a new session.';
         }
-    }, 120000);
+    }, 20000);
 }
 
 function initializeWebSocket() {
-    ws = new WebSocket('ws://209.145.62.86:4002');
+    ws = new WebSocket(`ws://${ipAddress}:4002`);
     console.log(`initializeWebSocket #003: Attempting connection`);
 
     ws.onopen = () => {
@@ -316,7 +332,35 @@ async function updateSessionStatus(sessionId) {
         console.error(`Error updating status for ${sessionId}:`, error);
     }
 }
+async function reconnectSession() {
+    const sessionId = document.getElementById('detailsSessionSelect').value;
+    
+    console.log(`reconnectSession #891: Attempting to reconnect session: ${sessionId}`);
+    
+    if (!sessionId) {
+        toastr.error('Please select a session first');
+        return;
+    }
 
+    try {
+        const response = await fetch(`/reconnect/${sessionId}`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            toastr.success(`Session ${sessionId} reconnected successfully`);
+            // Refresh the sessions list
+            await refreshSessions();
+        } else {
+            toastr.error(`Failed to reconnect: ${data.error}`);
+        }
+    } catch (error) {
+        console.error(`reconnectSession #892: Error: ${error}`);
+        toastr.error('Failed to reconnect session');
+    }
+}
 
 async function getServerStatus() {
     // Declare variables at the top
