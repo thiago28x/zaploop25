@@ -248,20 +248,36 @@ async function startBaileysConnection(sessionId = 'default') {
                     console.log(`🐸 startBaileysConnection: Sending webhook payload for message ${message.key.id}\n`);
                    // console.log(`startBaileysConnection: Message content type: ${messageContent.type}\n`);
                     
-                    let response = await fetch(webhookUrl, {
+                    console.log(`startBaileysConnection #654: Fire-and-forget webhook for message ${message.key.id}`);
+                    
+                    // Fire and forget the webhook request
+                    fetch(webhookUrl, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Origin': 'zaploop',
                         },
                         body: JSON.stringify(webhookPayload)
+                    }).catch(error => {
+                        console.error(`startBaileysConnection #876: Webhook error (async): ${error}`);
                     });
 
-                    if (!response.ok) {
-                        throw new Error(`Webhook request failed with status ${response.status}`);
-                    }
+                    /* 
+                    TO DO LATER - faster execution via curl ⌚
+                    const { exec } = require('child_process');
 
-                   // console.log(`startBaileysConnection: Successfully forwarded message ${message.key.id} to webhook\n`);
+function sendRequestWithoutWait() {
+    exec(`curl -X POST http://localhost:3000/api -H "Content-Type: application/json" -d '{"data":"your data"}'`, 
+        (error) => {
+            if (error) console.error('Request failed', error);
+        });
+}
+
+                    
+                    */
+
+                    // Remove the response check since we're not waiting
+                    // console.log(`startBaileysConnection: Successfully forwarded message...`);
                 } catch (error) {
                     console.error(`startBaileysConnection: Error processing message ${message?.key?.id}: ${error}\n`);
                 }
