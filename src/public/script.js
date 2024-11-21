@@ -34,7 +34,7 @@ async function refreshSessions() {
         // Update sessions list
         sessionsList.innerHTML = '';
         // Update details select
-        detailsSelect.innerHTML = '<option value="">Default</option>';
+        detailsSelect.innerHTML = '<option value="">default</option>';
         
         if (data.sessions && data.sessions.length > 0) {
             placeholder.style.display = 'none';

@@ -482,6 +482,7 @@ function handleStoreError(error, operation) {
 
 // Remove the try-catch block at the bottom and create a new function
 async function getStoreData(store, sessionId) {
+    // Variables at the top
     let storeData = {
         contacts: {},
         chats: [],
@@ -489,38 +490,47 @@ async function getStoreData(store, sessionId) {
     };
 
     try {
-        console.log(`getStoreData: Fetching store data for session ${sessionId}\n`);
+        console.log(`getStoreData #543: Fetching store data for session ${sessionId}`);
         
-        // Fetch contacts
+        // Fetch contacts - Using store directly instead of store.contacts
         try {
-            storeData.contacts = await store.contacts.all();
-            console.log(`getStoreData: Retrieved ${Object.keys(storeData.contacts).length} contacts\n`);
+            storeData.contacts = store.contacts;
+            console.log(`getStoreData #876: Retrieved ${Object.keys(storeData.contacts).length} contacts`);
         } catch (error) {
-            console.error(`getStoreData: Error fetching contacts: ${error}\n`);
+            console.error(`getStoreData #654: Error fetching contacts: ${error}`);
             handleStoreError(error, 'contacts fetch');
         }
 
-        // Fetch chats
+        // Fetch chats - Using store directly instead of store.chats
         try {
-            storeData.chats = await store.chats.all();
-            console.log(`getStoreData: Retrieved ${storeData.chats.length} chats\n`);
+            storeData.chats = Array.from(store.chats.values());
+            console.log(`getStoreData #789: Retrieved ${storeData.chats.length} chats`);
         } catch (error) {
-            console.error(`getStoreData: Error fetching chats: ${error}\n`);
+            console.error(`getStoreData #432: Error fetching chats: ${error}`);
             handleStoreError(error, 'chats fetch');
         }
 
-        // Fetch messages
+        // Fetch messages - Using store directly instead of store.messages
         try {
-            storeData.messages = await store.messages.all();
-            console.log(`getStoreData: Retrieved ${storeData.messages.length} messages\n`);
+            storeData.messages = Array.from(store.messages.values());
+            console.log(`getStoreData #965: Retrieved ${storeData.messages.length} messages`);
         } catch (error) {
-            console.error(`getStoreData: Error fetching messages: ${error}\n`);
+            console.error(`getStoreData #123: Error fetching messages: ${error}`);
             handleStoreError(error, 'messages fetch');
         }
 
+        console.log(`getStoreData #888: Store structure:`, {
+            hasContacts: !!store.contacts,
+            contactsType: typeof store.contacts,
+            hasChats: !!store.chats,
+            chatsType: typeof store.chats,
+            hasMessages: !!store.messages,
+            messagesType: typeof store.messages
+        });
+
         return storeData;
     } catch (error) {
-        console.error(`getStoreData: General store error: ${error}\n`);
+        console.error(`getStoreData #777: General store error: ${error}`);
         handleStoreError(error, 'general store operation');
         return storeData;
     }
