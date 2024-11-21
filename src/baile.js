@@ -607,18 +607,25 @@ baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
             throw new Error("Session or store not found");
         }
 
-        // Get contacts from store - using proper method
-        contacts = Object.entries(await session.store.contacts.toJSON())
-            .map(([id, contact]) => ({
-                id,
-                name: contact.name || contact.notify || id.split('@')[0],
-                number: id.split('@')[0],
-                notify: contact.notify || '',
-                verifiedName: contact.verifiedName || '',
-                pushName: contact.pushName || '',
-                status: contact.status || '',
-                imgUrl: contact.imgUrl || ''
-            }));
+        // Get all contacts from store using the updated method
+        const rawContacts = await session.store.contacts.all();
+        
+        // Transform contacts into a consistent format
+        contacts = rawContacts.map(contact => ({
+            id: contact.id,
+            name: contact.name || contact.notify || contact.id.split('@')[0],
+            number: contact.id.split('@')[0],
+            notify: contact.notify || '',
+            verifiedName: contact.verifiedName || '',
+            pushName: contact.pushName || '',
+            status: contact.status || '',
+            imgUrl: contact.imgUrl || '',
+            // Add additional fields that might be useful
+            isBusiness: contact.isBusiness || false,
+            isGroup: contact.id.endsWith('@g.us'),
+            isUser: contact.id.endsWith('@s.whatsapp.net'),
+            lastSeen: contact.lastSeen || null
+        }));
 
         console.log(`getSessionContacts #544: Retrieved ${contacts.length} contacts for ${sessionId}`);
 
@@ -626,13 +633,15 @@ baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
             status: "success",
             sessionId,
             contacts: contacts,
-            count: contacts.length
+            count: contacts.length,
+            timestamp: new Date().toISOString()
         });
     } catch (error) {
         console.error(`getSessionContacts #545: Error: ${error}`);
         res.status(500).send({ 
             error: "Failed to fetch contacts",
-            details: error.message 
+            details: error.message,
+            sessionId
         });
     }
 });
