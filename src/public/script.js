@@ -34,7 +34,7 @@ async function refreshSessions() {
         // Update sessions list
         sessionsList.innerHTML = '';
         // Update details select
-        detailsSelect.innerHTML = '<option value="">Select a session</option>';
+        detailsSelect.innerHTML = '<option value="">Default</option>';
         
         if (data.sessions && data.sessions.length > 0) {
             placeholder.style.display = 'none';
@@ -448,7 +448,12 @@ function updateResourceBar(barId, used, total) {
 
 async function getSessionChats(sessionId) {
     console.log(`getSessionChats: sessionId: ${sessionId}\n`);
-    
+    //if sessionId is empty, return an empty array
+    if (!sessionId) {
+        //send response with status 404 and message "No session ID provided"
+        return { status: "error", message: "No session ID provided" };      
+    }
+
     try {
         let response = await fetch(`/session-chats/${sessionId}`, {
             method: 'GET',
@@ -472,6 +477,10 @@ async function getSessionChats(sessionId) {
 
 async function getSessionContacts(sessionId) {
     console.log(`getSessionContacts #654: sessionId: ${sessionId}`);
+    if (!sessionId) {
+        //send response with status 404 and message "No session ID provided"
+        return { status: "error", message: "No session ID provided" };      
+    }
     
     try {
         let response = await fetch(`/session-contacts/${sessionId}`, {
@@ -514,6 +523,10 @@ async function loadChats(sessionId) {
     // Declare variables at the top
     let chatsList = document.getElementById('chatsList');
     let placeholder = document.getElementById('chatsPlaceholder');
+
+    if (!sessionId) { //get first value from sessionId from select
+        sessionId = document.getElementById('detailsSessionSelect').value;  
+    }
     
     console.log(`loadChats #331: Starting with sessionId: ${sessionId}, chatsList exists: ${!!chatsList}, placeholder exists: ${!!placeholder}`);
     
@@ -563,6 +576,10 @@ async function loadChats(sessionId) {
 }
 
 async function loadContacts(sessionId) {
+    if (!sessionId) { //get first value from sessionId from select
+        const select = document.getElementById('detailsSessionSelect');
+        sessionId = select.options[0].value;
+    }
     let contactsList = document.getElementById('contactsList');
     let placeholder = document.getElementById('contactsPlaceholder');
     

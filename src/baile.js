@@ -595,8 +595,11 @@ baileysApp.get("/session-chats/:sessionId", async (req, res) => {
 });
 
 baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
+    // Variables at top
     let { sessionId } = req.params;
-    console.log(`\n 🍪 BAILEYS SERVER: /session-contacts/${sessionId}: Fetching contacts\n`);
+    let contacts = [];
+    
+    console.log(`getSessionContacts #543: Fetching contacts for session ${sessionId}`);
     
     try {
         let session = sessions.get(sessionId);
@@ -604,18 +607,33 @@ baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
             throw new Error("Session or store not found");
         }
 
-        let contacts = await session.store.contacts.all();
-        console.log(`/session-contacts: Retrieved ${Object.keys(contacts).length} contacts for ${sessionId}\n`);
+        // Get contacts from store - using proper method
+        contacts = Object.entries(await session.store.contacts.toJSON())
+            .map(([id, contact]) => ({
+                id,
+                name: contact.name || contact.notify || id.split('@')[0],
+                number: id.split('@')[0],
+                notify: contact.notify || '',
+                verifiedName: contact.verifiedName || '',
+                pushName: contact.pushName || '',
+                status: contact.status || '',
+                imgUrl: contact.imgUrl || ''
+            }));
+
+        console.log(`getSessionContacts #544: Retrieved ${contacts.length} contacts for ${sessionId}`);
 
         res.send({
             status: "success",
             sessionId,
             contacts: contacts,
-            count: Object.keys(contacts).length
+            count: contacts.length
         });
     } catch (error) {
-        console.error(`/session-contacts: Error: ${error}\n`);
-        res.status(500).send({ error: "Failed to fetch contacts" });
+        console.error(`getSessionContacts #545: Error: ${error}`);
+        res.status(500).send({ 
+            error: "Failed to fetch contacts",
+            details: error.message 
+        });
     }
 });
 
