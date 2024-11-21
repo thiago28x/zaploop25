@@ -65,6 +65,7 @@ label {
     border-radius: 8px;
     margin-bottom: 20px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    max-width: 800px;
 }
 
 .form-group {
@@ -277,8 +278,8 @@ button:hover {
 }
 
 .session-details {
-    color: light-dark(#333b3c, #efefec);
-    background-color: light-dark(#efedea, #223a2c);
+    color: var(--text-color);
+    background-color: var(--background-color);
     border-radius: 8px;
     padding: 20px;
     margin-top: 20px;
@@ -479,4 +480,14 @@ button:hover {
 
 .reconnect-btn i {
     font-size: 16px;
+}
+
+[hoverable]:hover {
+    color: #4CAF50; /* Material Design green */
+    transition: color 0.2s ease;
+}
+
+[hoverable]:hover i {
+    color: #4CAF50; /* Ensure the icon also changes color */
+    transition: color 0.2s ease;
 }
