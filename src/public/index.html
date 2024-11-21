@@ -73,10 +73,10 @@
 
         <!-- Tabs -->
         <div class="tabs">
-            <button class="tab-btn active" onclick="showTab('chats')">
+            <button class="tab-btn active" onclick="loadChats(document.getElementById('detailsSessionSelect').value)">
                 <i class="ph ph-chats"></i> Chats
             </button>
-            <button class="tab-btn" onclick="showTab('contacts')">
+            <button class="tab-btn" onclick="loadContacts(document.getElementById('detailsSessionSelect').value)">
                 <i class="ph ph-address-book"></i> Contacts
             </button>
         </div>

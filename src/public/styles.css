@@ -65,7 +65,8 @@ label {
     border-radius: 8px;
     margin-bottom: 20px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    max-width: 800px;
+    max-width: 650px;
+    margin: 0 auto;
 }
 
 .form-group {
@@ -167,13 +168,7 @@ button:hover {
 }
 
 
-#serverStatus {
-    padding: 20px;
-    background-color: var(--card-background-color);
-    border-radius: 8px;
-    max-width: 90%;
-    margin: 0 auto;
-}
+
 .row {
     display: flex;
     justify-content: space-between;
@@ -295,7 +290,7 @@ button:hover {
 }
 
 .tab-btn:hover {
-    background: #f0f0f0;
+    background: #3d5cf4;
 }
 
 .tab-btn.active {
@@ -304,7 +299,6 @@ button:hover {
 }
 
 .tab-content {
-    display: none;
     padding: 20px 0;
 }
 

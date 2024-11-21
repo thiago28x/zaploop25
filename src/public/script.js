@@ -427,47 +427,9 @@ function updateResourceBar(barId, used, total) {
 }
 
 
-// Add session info viewer
-async function viewSessionInfo(sessionId) {
-    console.log(`viewSessionInfo: sessionId: ${sessionId}\n`);
-    
-    try {
-        let response = await fetch(`/session-info/${sessionId}`);
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch session info');
-        }
 
-        let data = await response.json();
-        
-        // Create a modal to display the info
-        let modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-            <h3>Session Info: ${sessionId}</h3>
-            <div class="info-tabs">
-                <button onclick="showTab('contacts')">Contacts (${Object.keys(data.contacts).length})</button>
-                <button onclick="showTab('chats')">Chats (${data.chats.length})</button>
-                <button onclick="showTab('messages')">Messages (${data.messages.length})</button>
-            </div>
-            <div class="info-content">
-                <pre>${JSON.stringify(data.info, null, 2)}</pre>
-            </div>
-            <button onclick="this.parentElement.parentElement.remove()">Close</button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    } catch (error) {
-        console.error(`viewSessionInfo: Error fetching session info: ${error}\n`);
-        toastr.error('Failed to fetch session info');
-    }
-}
-// Refresh sessions when page loads
-document.addEventListener('DOMContentLoaded', refreshSessions);
 
-// Refresh sessions every 30 seconds
-//setInterval(refreshSessions, 30000); 
+
 
 async function getSessionChats(sessionId) {
     console.log(`getSessionChats: sessionId: ${sessionId}\n`);
@@ -531,43 +493,7 @@ async function updateSessionSelect() {
     }
 }
 
-function showTab(tabName) {
-    // Declare variables at the top
-    let tabs = document.querySelectorAll('.tab-btn');
-    let contents = document.querySelectorAll('.tab-content');
-    let selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
-    let selectedContent = document.getElementById(`${tabName}Tab`);
-    
-    console.log(`showTab #654: Showing tab: ${tabName}, selectedTab exists: ${!!selectedTab}, selectedContent exists: ${!!selectedContent}`);
-    
-    if (!selectedTab || !selectedContent) {
-        console.error(`showTab #655: Tab ${tabName} not found`);
-        toastr.error('Tab not found');
-        return;
-    }
 
-    // Remove active class from all tabs and contents
-    tabs.forEach(tab => tab.classList.remove('active'));
-    contents.forEach(content => content.classList.remove('active'));
-
-    // Add active class to selected tab and content
-    selectedTab.classList.add('active');
-    selectedContent.classList.add('active');
-
-    // Load content based on selected tab
-    let sessionId = document.getElementById('detailsSessionSelect').value;
-    console.log(`showTab #656: SessionId: ${sessionId}, Loading tab: ${tabName}`);
-    
-    if (sessionId) {
-        if (tabName === 'chats') {
-            loadChats(sessionId);
-        } else if (tabName === 'contacts') {
-            loadContacts(sessionId);
-        }
-    } else {
-        console.log(`showTab #657: No session selected`);
-    }
-}
 
 async function loadChats(sessionId) {
     // Declare variables at the top
@@ -906,21 +832,8 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`DOMContentLoaded VERSION 00004 `);
     initializeWebSocket();
     updateSessionSelect();
-    showTab('chats');
     getBlockedPhones();
+    refreshSessions();
 });
 
-// Add this event listener setup
-document.addEventListener('DOMContentLoaded', () => {
-    // ... existing DOMContentLoaded code ...
-    
-    // Add click listeners to all tab buttons
-    document.querySelectorAll('.tab-btn').forEach(tab => {
-        tab.addEventListener('click', (e) => {
-            e.preventDefault();
-            const tabName = tab.getAttribute('data-tab');
-            console.log(`Tab clicked #658: ${tabName}`);
-            showTab(tabName);
-        });
-    });
-});
+
