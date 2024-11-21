@@ -2,6 +2,10 @@ let ws;
 let qrCheckInterval;
 const ipAddress = '209.145.62.86';
 
+
+//log the browser user css dark mode preference
+console.log(`Browser user CSS dark mode preference: ${window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'Dark' : 'Light'}`);
+
 function updateServer() {
     fetch('/update-server', { method: 'POST' })
         .then(response => response.json())
@@ -69,12 +73,7 @@ async function refreshSessions() {
 }
 
 
-document.addEventListener('DOMContentLoaded', () => {
-    console.log(`DOMContentLoaded #00003: Initializing  😁`);
-    initializeWebSocket();
-    updateSessionSelect();
-    showTab('chats');
-});
+
 
 async function startQRCheck(sessionId) {
     // Declare variables at the top
@@ -533,15 +532,16 @@ async function updateSessionSelect() {
 }
 
 function showTab(tabName) {
+    // Declare variables at the top
     let tabs = document.querySelectorAll('.tab-btn');
     let contents = document.querySelectorAll('.tab-content');
-    let selectedTab = document.querySelector(`.tab-btn[onclick="showTab('${tabName}')"]`);
+    let selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
     let selectedContent = document.getElementById(`${tabName}Tab`);
     
-    console.log(`showTab: Showing tab: ${tabName}\n`);
+    console.log(`showTab #654: Showing tab: ${tabName}, selectedTab exists: ${!!selectedTab}, selectedContent exists: ${!!selectedContent}`);
     
     if (!selectedTab || !selectedContent) {
-        console.error(`showTab: Tab ${tabName} not found\n`);
+        console.error(`showTab #655: Tab ${tabName} not found`);
         toastr.error('Tab not found');
         return;
     }
@@ -556,12 +556,16 @@ function showTab(tabName) {
 
     // Load content based on selected tab
     let sessionId = document.getElementById('detailsSessionSelect').value;
+    console.log(`showTab #656: SessionId: ${sessionId}, Loading tab: ${tabName}`);
+    
     if (sessionId) {
         if (tabName === 'chats') {
             loadChats(sessionId);
         } else if (tabName === 'contacts') {
             loadContacts(sessionId);
         }
+    } else {
+        console.log(`showTab #657: No session selected`);
     }
 }
 
@@ -804,7 +808,11 @@ async function getBlockedPhones() {
     console.log(`getBlockedPhones #765: Fetching blocked phones list`);
     
     try {
-        let response = await fetch(`http://${ipAddress}:${apiserverport}/blocked-phones`);
+        let response = await fetch(`http://${ipAddress}:${apiserverport}/blocked-phones`, {
+            headers: {
+                'origin': 'zaploop'
+            }
+        });
         let data = await response.json();
         
         // Clear existing list
@@ -846,7 +854,8 @@ async function blockPhone() {
         let response = await fetch(`http://${ipAddress}:${apiserverport}/blockuser`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'origin': 'zaploop'
             },
             body: JSON.stringify({ userPhone: phoneNumber })
         });
@@ -873,7 +882,8 @@ async function unblockPhone(phoneNumber) {
         let response = await fetch(`http://${ipAddress}:${apiserverport}/unblockuser`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'origin': 'zaploop'
             },
             body: JSON.stringify({ userPhone: phoneNumber })
         });
@@ -892,5 +902,25 @@ async function unblockPhone(phoneNumber) {
 }
 
 // Load blocked phones when page loads
-document.addEventListener('DOMContentLoaded', getBlockedPhones);
+document.addEventListener('DOMContentLoaded', () => {
+    console.log(`DOMContentLoaded VERSION 00004 `);
+    initializeWebSocket();
+    updateSessionSelect();
+    showTab('chats');
+    getBlockedPhones();
+});
 
+// Add this event listener setup
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing DOMContentLoaded code ...
+    
+    // Add click listeners to all tab buttons
+    document.querySelectorAll('.tab-btn').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tabName = tab.getAttribute('data-tab');
+            console.log(`Tab clicked #658: ${tabName}`);
+            showTab(tabName);
+        });
+    });
+});

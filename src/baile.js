@@ -349,7 +349,7 @@ baileysApp.get("/session-status/:sessionId", (req, res) => {
 // Get session info (contacts, chats, etc.)
 baileysApp.get("/session-info/:sessionId", async (req, res) => {
     let { sessionId } = req.params;
-    console.log(`\n 🍪 BAILEYS SERVER:  \n/session-info/${sessionId}: Fetching info\n`);
+    console.log(`\n 🍪 BAILEYS SERVER:  \n/session-info/${sessionId}: Fetching CONTACTS, CHATS, MESSAGES\n`);
     
     try {
         let session = sessions.get(sessionId);
