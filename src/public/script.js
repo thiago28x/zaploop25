@@ -19,9 +19,13 @@ function updateServer() {
 
 // Fetch and display active sessions
 async function refreshSessions() {
+    // Declare variables at the top
     let sessionsList = document.getElementById('sessionsList');
     let placeholder = document.getElementById('sessionListPlaceholder');
     let detailsSelect = document.getElementById('detailsSessionSelect');
+    let existingSessions = new Set();
+    
+    console.log(`refreshSessions #773: Starting refresh of sessions`);
     
     try {
         let response = await fetch('/list-sessions');
@@ -36,6 +40,15 @@ async function refreshSessions() {
             placeholder.style.display = 'none';
             
             for (let sessionId of data.sessions) {
+                // Skip if session already exists
+                if (existingSessions.has(sessionId)) {
+                    console.log(`refreshSessions #774: Skipping duplicate session: ${sessionId}`);
+                    continue;
+                }
+                
+                // Add to tracking Set
+                existingSessions.add(sessionId);
+                
                 // Get status for each session
                 let statusResponse = await fetch(`/session-status/${sessionId}`);
                 let statusData = await statusResponse.json();
@@ -60,8 +73,10 @@ async function refreshSessions() {
                     </div>
                 `;
                 
-                // Add to details select
-                detailsSelect.innerHTML += `<option value="${sessionId}">${sessionId}</option>`;
+                // Add to details select if not already present
+                if (!detailsSelect.querySelector(`option[value="${sessionId}"]`)) {
+                    detailsSelect.innerHTML += `<option value="${sessionId}">${sessionId}</option>`;
+                }
             }
         } else {
             placeholder.style.display = 'block';
@@ -435,7 +450,7 @@ async function getSessionChats(sessionId) {
     console.log(`getSessionChats: sessionId: ${sessionId}\n`);
     
     try {
-        let response = await fetch(`/session-chats-direct/${sessionId}`, {
+        let response = await fetch(`/session-chats/${sessionId}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -456,10 +471,10 @@ async function getSessionChats(sessionId) {
 }
 
 async function getSessionContacts(sessionId) {
-    console.log(`getSessionContacts: sessionId: ${sessionId}\n`);
+    console.log(`getSessionContacts #654: sessionId: ${sessionId}`);
     
     try {
-        let response = await fetch(`/session-contacts-direct/${sessionId}`, {
+        let response = await fetch(`/session-contacts/${sessionId}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -469,11 +484,11 @@ async function getSessionContacts(sessionId) {
         let data = await response.json();
         
         if (data.status === "success") {
-            console.log(`getSessionContacts: Retrieved ${data.count} contacts\n`);
+            console.log(`getSessionContacts #655: Retrieved ${data.count} contacts`);
             return data.contacts;
         }
     } catch (error) {
-        console.error(`getSessionContacts: Error fetching contacts: ${error}\n`);
+        console.error(`getSessionContacts #656: Error fetching contacts: ${error}`);
         toastr.error('Failed to fetch contacts');
     }
     return [];
@@ -597,8 +612,10 @@ async function loadContacts(sessionId) {
 
 async function fetchChats(sessionId) {
     try {
-        let response = await fetch(`/session-chats-direct/${sessionId}`);
+        console.log(`fetchChats #8675: Fetching chats for session ${sessionId}`);
+        let response = await fetch(`/session-chats/${sessionId}`);
         let data = await response.json();
+        console.log(`fetchChats #8675: Received ${data?.chats?.length || 0} chats`);
         
         if (!response.ok) {
             throw new Error(data.error || 'Failed to fetch chats');
