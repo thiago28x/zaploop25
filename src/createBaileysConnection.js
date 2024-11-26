@@ -75,7 +75,9 @@ function ensureSessionDir(sessionDir) {
 async function startBaileysConnection(sessionId = 'default') {
     let sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
     let store = makeInMemoryStore(storeConfig);
-    
+
+    console.log(`startBaileysConnection #542: Starting session ${sessionId} with store: ${store}`);
+
     // Check retry info
     let retryInfo = SESSION_RETRY_DELAYS.get(sessionId) || { count: 0, lastAttempt: 0 };
     let now = Date.now();
@@ -303,9 +305,11 @@ function sendRequestWithoutWait() {
 
             if (connection === 'close') {
                 let disconnectReason = lastDisconnect?.error?.output?.statusCode;
-                let shouldReconnect = disconnectReason !== DisconnectReason.loggedOut && 
-                                    disconnectReason !== DisconnectReason.connectionClosed &&
-                                    retryInfo.count < MAX_SESSION_RETRIES;
+                // For 'default' session, always try to reconnect regardless of retry count
+                let shouldReconnect = sessionId === 'default' || 
+                                    (disconnectReason !== DisconnectReason.loggedOut && 
+                                     disconnectReason !== DisconnectReason.connectionClosed &&
+                                     retryInfo.count < MAX_SESSION_RETRIES);
                 
                 console.log(`startBaileysConnection #789: Session ${sessionId} disconnect reason: ${disconnectReason}`);
                 console.log(`startBaileysConnection #790: Session ${sessionId} retry count: ${retryInfo.count}/${MAX_SESSION_RETRIES}`);
@@ -342,7 +346,7 @@ function sendRequestWithoutWait() {
         sock.ev.on('chats.set', () => {
             try {
                 if (ensureSessionDir(sessionDir)) {
-                    console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing chats\n`);
+                   // console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing chats\n`);
                     store.writeToFile(path.join(sessionDir, 'store.json'));
                 }
             } catch (error) {
@@ -356,6 +360,7 @@ function sendRequestWithoutWait() {
                 if (ensureSessionDir(sessionDir)) {
                     console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing contacts\n`);
                     store.writeToFile(path.join(sessionDir, 'store.json'));
+                    /* {"chats":[],"contacts":{},"messages":{},"labels":[],"labelAssociations":[]} */
                 }
             } catch (error) {
                 console.error(`startBaileysConnection: Error writing contacts to store: ${error}\n`);
@@ -366,7 +371,7 @@ function sendRequestWithoutWait() {
         sock.ev.on('messaging-history.set', () => {
             try {
                 if (ensureSessionDir(sessionDir)) {
-                    console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing message history\n`);
+                 //   console.log(`\n 🍪 BAILEYS SERVER: ${sessionId}: Syncing message history\n`);
                     store.writeToFile(path.join(sessionDir, 'store.json'));
                 }
             } catch (error) {

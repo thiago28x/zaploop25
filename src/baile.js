@@ -545,7 +545,7 @@ async function gracefulShutdown() {
         
         // Close the Express server first
         if (baileysApp.server) {
-            console.log(`\n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Closing Express server\n`);
+            console.log(`\n ���� BAILEYS SERVER:  \ngracefulShutdown: Closing Express server\n`);
             await new Promise(resolve => baileysApp.server.close(resolve));
         }
         
@@ -598,6 +598,7 @@ baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
     // Variables at top
     let { sessionId } = req.params;
     let contacts = [];
+    let storeContacts = null;
     
     console.log(`getSessionContacts #543: Fetching contacts for session ${sessionId}`);
     
@@ -607,27 +608,33 @@ baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
             throw new Error("Session or store not found");
         }
 
-        // Get all contacts from store using the updated method
-        const rawContacts = await session.store.contacts.all();
+        // Try to get contacts with error handling
+        try {
+            storeContacts = await session.store.contacts.all();
+            console.log(`getSessionContacts #544: Successfully retrieved ${storeContacts.length} raw contacts`);
+        } catch (storeError) {
+            console.error(`getSessionContacts #545: Store error: ${storeError}`);
+            // Fallback to empty array if store fails
+            storeContacts = [];
+        }
         
-        // Transform contacts into a consistent format
-        contacts = rawContacts.map(contact => ({
-            id: contact.id,
-            name: contact.name || contact.notify || contact.id.split('@')[0],
-            number: contact.id.split('@')[0],
+        // Transform contacts with validation
+        contacts = storeContacts.map(contact => ({
+            id: contact.id || '',
+            name: contact.name || contact.notify || (contact.id ? contact.id.split('@')[0] : 'Unknown'),
+            number: contact.id ? contact.id.split('@')[0] : '',
             notify: contact.notify || '',
             verifiedName: contact.verifiedName || '',
             pushName: contact.pushName || '',
             status: contact.status || '',
             imgUrl: contact.imgUrl || '',
-            // Add additional fields that might be useful
-            isBusiness: contact.isBusiness || false,
-            isGroup: contact.id.endsWith('@g.us'),
-            isUser: contact.id.endsWith('@s.whatsapp.net'),
+            isBusiness: Boolean(contact.isBusiness),
+            isGroup: contact.id ? contact.id.endsWith('@g.us') : false,
+            isUser: contact.id ? contact.id.endsWith('@s.whatsapp.net') : false,
             lastSeen: contact.lastSeen || null
         }));
 
-        console.log(`getSessionContacts #544: Retrieved ${contacts.length} contacts for ${sessionId}`);
+        console.log(`getSessionContacts #546: Transformed ${contacts.length} contacts for ${sessionId}`);
 
         res.send({
             status: "success",
@@ -637,7 +644,7 @@ baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
             timestamp: new Date().toISOString()
         });
     } catch (error) {
-        console.error(`getSessionContacts #545: Error: ${error}`);
+        console.error(`getSessionContacts #547: Error: ${error}`);
         res.status(500).send({ 
             error: "Failed to fetch contacts",
             details: error.message,
@@ -829,6 +836,8 @@ function initializeWebSocket() {
     }
 }
 
+// Ensure WebSocket server is initialized
+initializeWebSocket();
 
 let { exec } = require('child_process');
 

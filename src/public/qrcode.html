@@ -4,8 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Code Example</title>
+    <script src="https://unpkg.com/notyf/notyf.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/notyf/notyf.min.css">
 </head>
 <body>
+    <button onclick="new Notyf().success('This is a success notification!');">Test Alert</button>
+
+
+
     <div id="qrcode"></div>
     <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
     <script>

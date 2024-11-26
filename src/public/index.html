@@ -7,8 +7,9 @@
     <link rel="stylesheet" href="styles.css">
     <!-- favicon https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Google_Messages_icon_%282022%29.svg/192px-Google_Messages_icon_%282022%29.svg.png-->
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Google_Messages_icon_%282022%29.svg/192px-Google_Messages_icon_%282022%29.svg.png" type="image/png">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script src="https://unpkg.com/notyf/notyf.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/notyf/notyf.min.css">
+   
     <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/regular/style.css">
 </head>
@@ -20,6 +21,7 @@
         <i class="ph ph-arrow-circle-up"></i> Update Server
     </button>
 </header>
+<button onclick="new Notyf().success('This is a success notification!');">Test Alert</button>
 
 
     <div class="container" style="margin-top: 30px;">
@@ -27,7 +29,7 @@
         <div class="section">
             <h2><i class="ph ph-plus-circle"></i> Create New Session</h2>
             <div class="form-group">
-                <input type="text" id="sessionId" placeholder="Enter Session ID">
+                <input type="text" id="sessionId" value="default" placeholder="Enter Session ID">
                 <button onclick="createSession()">Create Session</button>
             </div>
             <!-- Update QR code container with proper structure -->
