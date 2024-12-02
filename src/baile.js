@@ -22,11 +22,11 @@ let wss;
 // Restore sessions before starting the server
 async function startServer() {
     const currentTime = Date.now();
-    console.log(`\n 🍪 BAILEYS SERVER:  \nstartServer: Initializing server\n`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \nstartServer: Initializing server\n`);
     
     // Prevent multiple simultaneous start attempts
     if (isStarting) {
-        console.log(`\n 🍪 BAILEYS SERVER:  \nstartServer: Server is already starting\n`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \nstartServer: Server is already starting\n`);
         process.exit(1);
     }
 
@@ -47,7 +47,7 @@ async function startServer() {
         
         baileysApp.listen(4001, () => {
             isStarting = false;
-            console.log(`\n 🍪 BAILEYS SERVER:  \nstartServer: Baileys service running on port 4001\n`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \nstartServer: Baileys service running on port 4001\n`);
         });
     } catch (error) {
         console.error(`startServer: Error starting server: ${error}\n`);
@@ -75,12 +75,12 @@ baileysApp.get('/dashboard', (req, res) => {
 //start a new session
 baileysApp.post("/start", async (req, res) => {
     let { sessionId } = req.body;
-    console.log(`/start #543: Creating session with ID: ${sessionId}`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ /start #543: Creating session with ID: ${sessionId}`);
     
     try {
         let sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
         if (!fs.existsSync(sessionDir)) {
-            console.log(`/start #544: Creating new session directory for ${sessionId}`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ /start #544: Creating new session directory for ${sessionId}`);
             fs.mkdirSync(sessionDir, { recursive: true });
         }
 
@@ -158,7 +158,7 @@ baileysApp.get("/session/:sessionId", async (req, res) => {
 
 const validatePhoneNumber = (req, res, next) => {
     let phoneNumber = req.body.jid || req.params.jid || req.query.jid;
-    console.log(`validatePhoneNumber #004: Validating phone number: ${phoneNumber}`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ validatePhoneNumber #004: Validating phone number: ${phoneNumber}`);
 
     try {
         if (!phoneNumber) {
@@ -180,10 +180,10 @@ const validatePhoneNumber = (req, res, next) => {
         // Add @s.whatsapp.net suffix if not a group chat
         req.body.jid = cleanPhone + '@s.whatsapp.net';
         
-        console.log(`validatePhoneNumber #001: Cleaned phone number: ${req.body.jid}`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ validatePhoneNumber #001: Cleaned phone number: ${req.body.jid}`);
         next();
     } catch (error) {
-        console.log(`validatePhoneNumber #032: Error: ${error.message}`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ validatePhoneNumber #032: Error: ${error.message}`);
         res.status(400).json({
             error: 'Invalid phone number',
             details: error.message
@@ -193,7 +193,7 @@ const validatePhoneNumber = (req, res, next) => {
 
 const validateMessageBody = (req, res, next) => {
     let { sessionId } = req.body;
-    console.log(`validateMessageBody #002: Validating message body for sessionId: ${sessionId}`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ validateMessageBody #002: Validating message body for sessionId: ${sessionId}`);
 
     if (!sessionId) {
         return res.status(400).json({ 
@@ -207,12 +207,12 @@ const validateMessageBody = (req, res, next) => {
 
 baileysApp.post("/send-message", validatePhoneNumber, validateMessageBody, async (req, res) => {
   let { sessionId, jid, message } = req.body;
-  //console.log(`\n💫BAILEYS SERVER: /send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
+  //console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: /send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
   try {
     let client = getSession(sessionId);
     if (!client) {
-      //console.log(`\n 🍪 BAILEYS SERVER:  \n/send-message: No session found for sessionId: \n${sessionId}\n`);
+      //console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n/send-message: No session found for sessionId: \n${sessionId}\n`);
       return res.status(404).send({ error: "no session found" });
     }
 
@@ -228,7 +228,7 @@ baileysApp.post("/send-message", validatePhoneNumber, validateMessageBody, async
     }
 
     //RANDOM DELAY
-    const randomDelay = Math.floor(Math.random() * 5000) + 1000; // Random delay between 1 and 5 seconds
+    const randomDelay = Math.floor(Math.random() * 5000) + 1000; // Random delay.
     await new Promise(resolve => setTimeout(resolve, randomDelay));
 
     // Update presence to 'composing'
@@ -247,7 +247,7 @@ baileysApp.post("/send-message", validatePhoneNumber, validateMessageBody, async
 });
 
 baileysApp.get("/list-sessions", (req, res) => {
-    console.log(`\n 🍪 BAILEYS SERVER:  \n/list-sessions: Retrieving all active sessions\n`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n/list-sessions: Retrieving all active sessions\n`);
     
     try {
         let activeSessions = Array.from(sessions.keys());
@@ -267,12 +267,12 @@ baileysApp.delete("/session/:sessionId", async (req, res) => {
     const sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
     const storeFile = path.join(sessionDir, 'store.json');
     
-    console.log(`deleteSession #543: Attempting to delete session: ${sessionId}`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ deleteSession #543: Attempting to delete session: ${sessionId}`);
     
     try {
         // Ensure session directory exists
         if (!fs.existsSync(sessionDir)) {
-            console.log(`deleteSession #544: Session directory doesn't exist: ${sessionDir}`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ deleteSession #544: Session directory doesn't exist: ${sessionDir}`);
             return res.status(404).send({ 
                 error: "Session not found",
                 details: "Session directory does not exist"
@@ -285,10 +285,10 @@ baileysApp.delete("/session/:sessionId", async (req, res) => {
             try {
                 if (client.ws && client.ws.readyState !== WebSocket.CLOSED) {
                     await client.end();
-                    console.log(`deleteSession #545: Closed connection for session: ${sessionId}`);
+                    console.log(` BAILE 🧜‍♀️🧜‍♀️ deleteSession #545: Closed connection for session: ${sessionId}`);
                 }
             } catch (closeError) {
-                console.log(`deleteSession #546: Non-critical error while closing connection: ${closeError}`);
+                console.log(` BAILE 🧜‍♀️🧜‍♀️ deleteSession #546: Non-critical error while closing connection: ${closeError}`);
             }
             
             // Remove from sessions map
@@ -298,12 +298,12 @@ baileysApp.delete("/session/:sessionId", async (req, res) => {
         // Delete store.json if it exists
         if (fs.existsSync(storeFile)) {
             fs.unlinkSync(storeFile);
-            console.log(`deleteSession #547: Deleted store file: ${storeFile}`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ deleteSession #547: Deleted store file: ${storeFile}`);
         }
         
         // Delete session directory
         fs.rmSync(sessionDir, { recursive: true, force: true });
-        console.log(`deleteSession #548: Deleted session directory: ${sessionDir}`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ deleteSession #548: Deleted session directory: ${sessionDir}`);
         
         res.send({ 
             status: "success", 
@@ -325,7 +325,7 @@ baileysApp.delete("/session/:sessionId", async (req, res) => {
 
 baileysApp.get("/session-status/:sessionId", (req, res) => {
     let { sessionId } = req.params;
-    console.log(`\n 🍪 BAILEYS SERVER:  \n/session-status/${sessionId}: Fetching status\n`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n/session-status/${sessionId}: Fetching status\n`);
     
     try {
         let client = getSession(sessionId);
@@ -349,7 +349,7 @@ baileysApp.get("/session-status/:sessionId", (req, res) => {
 // Get session info (contacts, chats, etc.)
 baileysApp.get("/session-info/:sessionId", async (req, res) => {
     let { sessionId } = req.params;
-    console.log(`\n 🍪 BAILEYS SERVER:  \n/session-info/${sessionId}: Fetching CONTACTS, CHATS, MESSAGES\n`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n/session-info/${sessionId}: Fetching CONTACTS, CHATS, MESSAGES\n`);
     
     try {
         let session = sessions.get(sessionId);
@@ -373,7 +373,7 @@ baileysApp.get("/session-info/:sessionId", async (req, res) => {
         // Use the new getStoreData function
         let storeData = await getStoreData(store, sessionId);
 
-        console.log(`\n 🍪 BAILEYS SERVER:  \n/session-info: Store data retrieved:
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n/session-info: Store data retrieved:
             Contacts: ${Object.keys(storeData.contacts || {}).length}
             Chats: ${(storeData.chats || []).length}
             Messages: ${(storeData.messages || []).length}\n`);
@@ -404,7 +404,7 @@ baileysApp.get("/session-info/:sessionId", async (req, res) => {
 
 baileysApp.post("/send-image", validateMessageBody, async (req, res) => {
     let { sessionId, jid, imageUrl, caption, viewOnce } = req.body;
-    console.log(`/send-image #432: Request params - sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}, viewOnce: ${viewOnce}`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ /send-image #432: Request params - sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}, viewOnce: ${viewOnce}`);
     
     try {
         let client = getSession(sessionId);
@@ -454,7 +454,7 @@ baileysApp.use((req, res, next) => {
 });
 
 baileysApp.get('/health', (req, res) => {
-    console.log(`\n 🍪 BAILEYS SERVER:  \n/health: Checking service health\n`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n/health: Checking service health\n`);
     res.send({
         status: 'healthy',
         uptime: process.uptime(),
@@ -491,7 +491,7 @@ function getServerStatus(req, res) {
     const cpuUsage = os.loadavg()[0]; // 1-minute load average
     const cpuFree = cpuCount - cpuUsage;
 
-    console.log(`\n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER: getServerStatus: System resources status:\n` +
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER: getServerStatus: System resources status:\n` +
         `RAM - Total: ${formatBytes(totalRAM)}, Used: ${formatBytes(usedRAM)}, Free: ${formatBytes(freeRAM)}\n` +
         `CPU - Total Cores: ${cpuCount}, Used: ${cpuUsage.toFixed(2)}, Free: ${cpuFree.toFixed(2)}\n` + 
         `Disk - Total: ${formatBytes(totalDisk)}, Used: ${formatBytes(usedDisk)}, Free: ${formatBytes(freeDisk)}\n`);
@@ -527,10 +527,10 @@ async function gracefulShutdown() {
     let isShuttingDown = false;  // Prevent multiple shutdown attempts
     let shutdownTimeout = 10000; // 10 seconds timeout
     
-    console.log(`\n  BAILEYS SERVER:  \n\n 🍪 BAILEYS SERVER:  \n gracefulShutdown: Received shutdown signal\n`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n  BAILEYS SERVER:  \n\n 🍪 BAILEYS SERVER:  \n gracefulShutdown: Received shutdown signal\n`);
     
     if (isShuttingDown) {
-        console.log(`\n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Shutdown already in progress\n`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Shutdown already in progress\n`);
         return;
     }
     
@@ -545,13 +545,13 @@ async function gracefulShutdown() {
         
         // Close the Express server first
         if (baileysApp.server) {
-            console.log(`\n ���� BAILEYS SERVER:  \ngracefulShutdown: Closing Express server\n`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ \n ���� BAILEYS SERVER:  \ngracefulShutdown: Closing Express server\n`);
             await new Promise(resolve => baileysApp.server.close(resolve));
         }
         
         // Close all WhatsApp connections gracefully
         for (let [sessionId, client] of sessions) {
-            console.log(`\n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Closing session ${sessionId}\n`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Closing session ${sessionId}\n`);
             await client.end();
         }
         
@@ -560,7 +560,7 @@ async function gracefulShutdown() {
         connectionStates.clear();
         
         clearTimeout(forceShutdown);
-        console.log(`\n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Shutdown completed successfully\n`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Shutdown completed successfully\n`);
         process.exit(0);
     } catch (error) {
         console.error(`gracefulShutdown: Error during shutdown: ${error}\n`);
@@ -571,7 +571,7 @@ async function gracefulShutdown() {
 // Add new endpoints for specific data retrieval
 baileysApp.get("/session-chats/:sessionId", async (req, res) => {
     let { sessionId } = req.params;
-    console.log(`\n 🍪 BAILEYS SERVER: /session-chats/${sessionId}: Fetching chats\n`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER: /session-chats/${sessionId}: Fetching chats\n`);
     
     try {
         let session = sessions.get(sessionId);
@@ -580,7 +580,7 @@ baileysApp.get("/session-chats/:sessionId", async (req, res) => {
         }
 
         let chats = await session.store.chats.all();
-        console.log(`/session-chats: Retrieved ${chats.length} chats for ${sessionId}\n`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ /session-chats: Retrieved ${chats.length} chats for ${sessionId}\n`);
 
         res.send({
             status: "success",
@@ -600,7 +600,7 @@ baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
     let contacts = [];
     let storeContacts = null;
     
-    console.log(`getSessionContacts #543: Fetching contacts for session ${sessionId}`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ getSessionContacts #543: Fetching contacts for session ${sessionId}`);
     
     try {
         let session = sessions.get(sessionId);
@@ -611,7 +611,7 @@ baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
         // Try to get contacts with error handling
         try {
             storeContacts = await session.store.contacts.all();
-            console.log(`getSessionContacts #544: Successfully retrieved ${storeContacts.length} raw contacts`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ getSessionContacts #544: Successfully retrieved ${storeContacts.length} raw contacts`);
         } catch (storeError) {
             console.error(`getSessionContacts #545: Store error: ${storeError}`);
             // Fallback to empty array if store fails
@@ -634,7 +634,7 @@ baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
             lastSeen: contact.lastSeen || null
         }));
 
-        console.log(`getSessionContacts #546: Transformed ${contacts.length} contacts for ${sessionId}`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ getSessionContacts #546: Transformed ${contacts.length} contacts for ${sessionId}`);
 
         res.send({
             status: "success",
@@ -656,7 +656,7 @@ baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
 // Add endpoints using direct socket methods
 baileysApp.get("/session-chats-direct/:sessionId", async (req, res) => {
     let sessionId = req.params.sessionId;
-    console.log(`\n 🍪 BAILEYS SERVER: /session-chats-direct/${sessionId}: Fetching chats directly\n`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER: /session-chats-direct/${sessionId}: Fetching chats directly\n`);
     
     if (!sessionId) {
         return res.status(400).json({ 
@@ -675,7 +675,7 @@ baileysApp.get("/session-chats-direct/:sessionId", async (req, res) => {
 
         // Using the correct method to fetch chats
         let chats = await session.sock.groupFetchAllParticipating();
-        console.log(`/session-chats-direct: Retrieved ${Object.keys(chats).length} chats for ${sessionId}\n`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ /session-chats-direct: Retrieved ${Object.keys(chats).length} chats for ${sessionId}\n`);
 
         // Transform the chats object into the desired format
         let formattedChats = Object.entries(chats).map(([id, chat]) => ({
@@ -702,7 +702,7 @@ baileysApp.get("/session-chats-direct/:sessionId", async (req, res) => {
 
 baileysApp.get("/session-contacts-direct/:sessionId", async (req, res) => {
     let { sessionId } = req.params;
-    console.log(`\n 🍪 BAILEYS SERVER: /session-contacts-direct/${sessionId}: Fetching contacts directly\n`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER: /session-contacts-direct/${sessionId}: Fetching contacts directly\n`);
     
     try {
         let session = sessions.get(sessionId);
@@ -711,7 +711,7 @@ baileysApp.get("/session-contacts-direct/:sessionId", async (req, res) => {
         }
 
         let contacts = await session.sock.getContacts();
-        console.log(`/session-contacts-direct: Retrieved ${Object.keys(contacts).length} contacts for ${sessionId}\n`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ /session-contacts-direct: Retrieved ${Object.keys(contacts).length} contacts for ${sessionId}\n`);
 
         res.send({
             status: "success",
@@ -734,7 +734,7 @@ baileysApp.get("/session-contacts-direct/:sessionId", async (req, res) => {
 // Add a new endpoint to get QR code via HTTP
 baileysApp.get("/qr/:sessionId", (req, res) => {
     let { sessionId } = req.params;
-    console.log(`/qr #543: Fetching QR for session ${sessionId}`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ /qr #543: Fetching QR for session ${sessionId}`);
     
     try {
         let session = sessions.get(sessionId);
@@ -761,7 +761,7 @@ baileysApp.get("/qr/:sessionId", (req, res) => {
 // Add this route to handle QR code requests
 baileysApp.get("/session-qr/:sessionId", async (req, res) => {
     let { sessionId } = req.params;
-    console.log(`/session-qr #543: Fetching QR for session ${sessionId}`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ /session-qr #543: Fetching QR for session ${sessionId}`);
     
     try {
         let session = sessions.get(sessionId);
@@ -806,10 +806,10 @@ function initializeWebSocket() {
             host: '0.0.0.0'  // Listen on all network interfaces
         });
         
-        console.log(`initializeWebSocket #543: Server initialized on port 4002`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #543: Server initialized on port 4002`);
         
         wss.on('connection', (ws) => {
-            console.log(`initializeWebSocket #544: Client connected`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #544: Client connected`);
             
             // Send initial connection confirmation
             ws.send(JSON.stringify({
@@ -818,11 +818,11 @@ function initializeWebSocket() {
             }));
             
             ws.on('error', (error) => {
-                console.log(`initializeWebSocket #545: Error: ${error}`);
+                console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #545: Error: ${error}`);
             });
 
             ws.on('close', () => {
-                console.log(`initializeWebSocket #546: Client disconnected`);
+                console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #546: Client disconnected`);
             });
         });
 
@@ -850,11 +850,11 @@ console.log('Resolved script path:', scriptPath);
     // Variables at the top
     let updateResult = null;
     
-    console.log(`[updateServer] Running update script at path: ${scriptPath} #544`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ [updateServer] Running update script at path: ${scriptPath} #544`);
     
     exec(`bash ${scriptPath}`, (error, stdout, stderr) => {
         if (error) {
-            console.log(`[updateServer] Error executing script: ${error} #545`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ [updateServer] Error executing script: ${error} #545`);
             return res.status(500).json({ 
                 success: false, 
                 message: 'Failed to update server',
@@ -862,7 +862,7 @@ console.log('Resolved script path:', scriptPath);
             });
         }
         
-        console.log(`[updateServer] Update script output: ${stdout} #546`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ [updateServer] Update script output: ${stdout} #546`);
         
         try {
             // Extract the JSON result from stdout
@@ -900,7 +900,7 @@ console.log('Resolved script path:', scriptPath);
                 details: updateResult
             });
         } catch (parseError) {
-            console.log(`[updateServer] Error parsing update result: ${parseError} #547`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ [updateServer] Error parsing update result: ${parseError} #547`);
             res.json({ 
                 success: true, 
                 message: 'Update completed but couldn\'t parse results',
@@ -916,20 +916,20 @@ baileysApp.post("/reconnect/:sessionId", async (req, res) => {
     
     // Add input validation
     if (!sessionId) {
-        console.log(`reconnectSession #764: Missing sessionId parameter`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #764: Missing sessionId parameter`);
         return res.status(400).send({
             error: "Missing parameter",
             details: "sessionId is required"
         });
     }
     
-    console.log(`reconnectSession #765: Attempting to reconnect session: ${sessionId}`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #765: Attempting to reconnect session: ${sessionId}`);
     
     try {
         // Check if session directory exists
         const sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
         if (!fs.existsSync(sessionDir)) {
-            console.log(`reconnectSession #766: Session directory not found: ${sessionDir}`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #766: Session directory not found: ${sessionDir}`);
             return res.status(404).send({
                 error: "Session not found",
                 details: "No session data found for reconnection"
@@ -942,14 +942,14 @@ baileysApp.post("/reconnect/:sessionId", async (req, res) => {
             try {
                 await existingSession.end();
                 sessions.delete(sessionId);
-                console.log(`reconnectSession #767: Closed existing session: ${sessionId}`);
+                console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #767: Closed existing session: ${sessionId}`);
             } catch (err) {
-                console.log(`reconnectSession #768: Error closing existing session: ${err}`);
+                console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #768: Error closing existing session: ${err}`);
             }
         }
 
         // Attempt to create new connection using existing auth data
-        console.log(`reconnectSession #769: Starting new connection for: ${sessionId}`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #769: Starting new connection for: ${sessionId}`);
         const sock = await startBaileysConnection(sessionId);
 
         // Wait for connection update
@@ -970,14 +970,14 @@ baileysApp.post("/reconnect/:sessionId", async (req, res) => {
         });
 
         if (connectionResult.success) {
-            console.log(`reconnectSession #770: Successfully reconnected session: ${sessionId}`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #770: Successfully reconnected session: ${sessionId}`);
             res.send({
                 status: "success",
                 message: "Session reconnected successfully",
                 sessionId
             });
         } else {
-            console.log(`reconnectSession #771: Failed to reconnect session: ${connectionResult.reason}`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #771: Failed to reconnect session: ${connectionResult.reason}`);
             res.status(500).send({
                 error: "Reconnection failed",
                 reason: connectionResult.reason,
@@ -1001,4 +1001,4 @@ baileysApp.post("/reconnect/:sessionId", async (req, res) => {
 
 startServer();
 
-console.log(`Server running at \n ${serverIP}dashboard \n`);
+console.log(` BAILE 🧜‍♀️🧜‍♀️ Server running at \n ${serverIP}dashboard \n`);

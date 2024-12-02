@@ -1,0 +1,4 @@
+cd /baileys/Baileys
+
+pm2 stop baile
+pm2 restart baile;pm2 logs
