@@ -209,6 +209,13 @@ baileysApp.post("/send-message", validatePhoneNumber, validateMessageBody, async
   let { sessionId, jid, message } = req.body;
   //console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: /send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
+  if (!sessionId || !jid || !message) {
+    return res.status(400).send({ error: "Missing required fields" });
+  }
+  if ( message.length < 3 ) {
+    return res.status(400).send({ error: "Message too short" });
+  }
+  
   try {
     let client = getSession(sessionId);
     if (!client) {
@@ -227,13 +234,12 @@ baileysApp.post("/send-message", validatePhoneNumber, validateMessageBody, async
       throw new Error("Invalid JID format");
     }
 
-    //RANDOM DELAY
-    const randomDelay = Math.floor(Math.random() * 5000) + 1000; // Random delay.
-    await new Promise(resolve => setTimeout(resolve, randomDelay));
-
     // Update presence to 'composing'
     await client.sendPresenceUpdate('composing', jid);
-    await new Promise(resolve => setTimeout(resolve, randomDelay)); // Wait for 2.5 seconds
+
+    //RANDOM DELAY
+    const randomDelay = Math.floor(Math.random() * 3000) + 1000; // Random delay.
+    await new Promise(resolve => setTimeout(resolve, randomDelay));
 
     await client.sendMessage(jid, { text: message });
     res.send({ status: "Message sent" });
