@@ -143,6 +143,32 @@
                 <button onclick="sendImage()">Send Image</button>
             </div>
         </div>
+
+        <!-- Add this after the "Send Image" section -->
+        <div class="section">
+            <h2><i class="ph ph-video"></i> Send Video</h2>
+            <div class="form-group">
+                <input type="text" id="videoSessionSelect" placeholder="Enter Session ID" value="default">
+                <input type="text" id="videoJid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
+                <input type="text" id="videoUrl" placeholder="Enter Video URL" value="https://example.com/video.mp4">
+                <input type="text" id="videoCaption" placeholder="Enter Caption (optional)" value="Check out this video!">
+                <div class="form-row">
+                    <label for="videoViewonce">View Once:</label>
+                    <select id="videoViewonce">
+                        <option value="false">No</option>
+                        <option value="true">Yes</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label for="gifPlayback">Play as GIF:</label>
+                    <select id="gifPlayback">
+                        <option value="false">No</option>
+                        <option value="true">Yes</option>
+                    </select>
+                </div>
+                <button onclick="sendVideo()">Send Video</button>
+            </div>
+        </div>
     </div>
 
 

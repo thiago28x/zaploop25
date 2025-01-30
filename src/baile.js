@@ -444,6 +444,67 @@ baileysApp.post("/send-image", validateMessageBody, async (req, res) => {
     }
 });
 
+// Add this route after the /send-message route
+baileysApp.post("/send-video", validatePhoneNumber, validateMessageBody, async (req, res) => {
+    // Variables at the top
+    let { sessionId, jid, videoUrl, caption, gifPlayback, viewOnce } = req.body;
+    
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ sendVideo #543: Sending video to ${jid} from session ${sessionId}`);
+
+    // Input validation
+    if (!sessionId || !jid || !videoUrl) {
+        return res.status(400).send({ 
+            error: "Missing required fields",
+            details: "sessionId, jid, and videoUrl are required" 
+        });
+    }
+
+    try {
+        let client = getSession(sessionId);
+        if (!client) {
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ sendVideo #544: No session found for ${sessionId}`);
+            return res.status(404).send({ error: "No session found" });
+        }
+
+        // Format JID if needed
+        if (!jid.includes('@')) {
+            jid = `${jid}@s.whatsapp.net`;
+        }
+        
+        // Validate JID format
+        if (!jid.match(/^[0-9]+@(s\.whatsapp\.net|g\.us)$/)) {
+            throw new Error("Invalid JID format");
+        }
+
+        // Update presence to 'composing'
+        await client.sendPresenceUpdate('composing', jid);
+
+        // Random delay for more natural behavior
+        const randomDelay = Math.floor(Math.random() * 3000) + 1000;
+        await new Promise(resolve => setTimeout(resolve, randomDelay));
+
+        // Send video message
+        await client.sendMessage(jid, {
+            video: { url: videoUrl },
+            caption: caption || '',
+            gifPlayback: gifPlayback || false,
+            viewOnce: viewOnce || false
+        });
+
+        res.send({ 
+            status: "success",
+            message: "Video sent successfully" 
+        });
+
+    } catch (error) {
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ sendVideo #545: Error sending video: ${error}`);
+        res.status(500).send({ 
+            error: "Failed to send video",
+            details: error.message 
+        });
+    }
+});
+
 // Add error handling middleware
 baileysApp.use((err, req, res, next) => {
     console.error(`Global Error Handler: ${err.stack}\n`);
