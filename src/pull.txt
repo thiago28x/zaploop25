@@ -1,4 +1,6 @@
-cd /baileys/Baileys
+cd ~
+cd baileys/Baileys
+git pull origin master
 
 pm2 stop baile
 pm2 restart baile;pm2 logs
