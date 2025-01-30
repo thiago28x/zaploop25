@@ -2,8 +2,36 @@ let ws;
 let qrCheckInterval;
 const ipAddress = '209.145.62.86';
 
-// Initialize Notyf
-const notyf = new Notyf();
+// Initialize Notyf with options
+const notyf = new Notyf({
+    duration: 3000,
+    position: {
+        x: 'right',
+        y: 'top',
+    },
+    types: [
+        {
+            type: 'warning',
+            background: 'orange',
+            icon: {
+                className: 'ph ph-warning',
+                tagName: 'i'
+            }
+        },
+        {
+            type: 'error',
+            background: 'red',
+            duration: 5000,
+            dismissible: true
+        },
+        {
+            type: 'success',
+            background: 'green',
+            duration: 3000,
+            dismissible: true
+        }
+    ]
+});
 
 document.getElementById('detailsSessionSelect').value;
 const detailsSelect = document.getElementById('detailsSessionSelect');
@@ -460,9 +488,6 @@ function updateResourceBar(barId, used, total) {
     text.textContent = `${used} / ${total} (${percentage.toFixed(1)}%)`;
 
 }
-
-
-
 
 
 
@@ -967,3 +992,47 @@ baileysApp.post('/start', async (req, res) => {
         res.status(500).send({ error: "Failed to create connection" });
     }
 });
+
+async function sendVideo() {
+    // Declare variables at the top
+    let sessionId = document.getElementById('videoSessionSelect').value;
+    let jid = document.getElementById('videoJid').value.trim();
+    let videoUrl = document.getElementById('videoUrl').value.trim();
+    let caption = document.getElementById('videoCaption').value.trim();
+    let viewOnce = document.getElementById('videoViewonce').value;
+    let gifPlayback = document.getElementById('gifPlayback').value;
+
+    console.log(`sendVideo #776: sessionId: ${sessionId}, jid: ${jid}, videoUrl: ${videoUrl}, caption: ${caption}, viewOnce: ${viewOnce}, gifPlayback: ${gifPlayback}`);
+
+    // Validate required fields
+    if (!sessionId || !jid || !videoUrl) {
+        notyf.error('Please fill in all required fields');
+        return;
+    }
+
+    try {
+        let response = await fetch('/send-video', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                sessionId, 
+                jid, 
+                videoUrl, 
+                caption, 
+                viewOnce: viewOnce === 'true',
+                gifPlayback: gifPlayback === 'true'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to send video');
+        }
+
+        notyf.success('Video sent successfully!');
+    } catch (error) {
+        console.error(`sendVideo #777: Error sending video: ${error}`);
+        notyf.error('Failed to send video');
+    }
+}
