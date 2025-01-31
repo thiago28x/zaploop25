@@ -1,3 +1,5 @@
+pm2 stop baile
+
 cd ~
 cd baileys/Baileys
 git pull origin master

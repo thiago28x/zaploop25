@@ -475,10 +475,7 @@ baileysApp.post("/send-video", validatePhoneNumber, validateMessageBody, async (
         if (!jid.match(/^[0-9]+@(s\.whatsapp\.net|g\.us)$/)) {
             throw new Error("Invalid JID format");
         }
-
-        // Update presence to 'composing'
-        await client.sendPresenceUpdate('composing', jid);
-
+   
         // Random delay for more natural behavior
         const randomDelay = Math.floor(Math.random() * 3000) + 1000;
         await new Promise(resolve => setTimeout(resolve, randomDelay));
