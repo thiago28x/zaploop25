@@ -32,6 +32,11 @@ span {
 }
 
 .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
     background-color: var(--primary-color);
     font-size: 10px;
     color: white;
@@ -49,6 +54,7 @@ span {
 .container {
     max-width: 800px;
     margin: 0 auto;
+    margin-top: 65px; /* header height (45px) + padding */
 }
 
 label {
@@ -58,6 +64,22 @@ label {
     font-size: 10px;
 
 }
+
+
+.header-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+#globalSessionId {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    width: 200px;
+}
+
 
 .section {
     background-color: var(--card-background-color);

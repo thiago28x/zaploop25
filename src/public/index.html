@@ -7,8 +7,8 @@
     <link rel="stylesheet" href="styles.css">
     <!-- favicon https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Google_Messages_icon_%282022%29.svg/192px-Google_Messages_icon_%282022%29.svg.png-->
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Google_Messages_icon_%282022%29.svg/192px-Google_Messages_icon_%282022%29.svg.png" type="image/png">
-    <script src="https://unpkg.com/notyf/notyf.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/notyf/notyf.min.css">
+    <link href="dist/toasty.min.css" rel="stylesheet">
+    <script src="dist/toasty.min.js"></script>
    
     <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/regular/style.css">
@@ -17,9 +17,12 @@
 <!-- add header, full width -->
 <header class="header" style="width: 100%;">
     <h1>Zaploop Dashboard</h1>
-    <button id="updateServerBtn" onclick="updateServer()" class="update-btn">
-        <i class="ph ph-arrow-circle-up"></i> Update Server
-    </button>
+    <div class="header-controls">
+        <input type="text" id="globalSessionId" placeholder="Enter Session ID" value="default">
+        <button id="updateServerBtn" onclick="updateServer()" class="update-btn">
+            <i class="ph ph-arrow-circle-up"></i> Update Server
+        </button>
+    </div>
 </header>
 <button onclick="new Notyf().success('This is a success notification!');">Test Alert</button>
 
@@ -30,7 +33,7 @@
             <h2><i class="ph ph-plus-circle"></i> Create New Session</h2>
             <div class="form-group">
                 <input type="text" id="sessionId" value="default" placeholder="Enter Session ID">
-                <button onclick="createSession()">Create Session</button>
+                <button onclick="createSession()">Generate QR Code</button>
             </div>
             <!-- Update QR code container with proper structure -->
             <div class="qr-container">
@@ -115,12 +118,7 @@
         <div class="section">
             <h2><i class="ph ph-chat-text"></i> Send Message</h2>
             <div class="form-group">
-                <!-- label -->
-                <label for="sessionSelect">Select Session</label>
-                <input type="text" id="sessionSelect" placeholder="Enter Session ID" value="default">
-                <label for="jid">Enter phone number</label>
                 <input type="text" id="jid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
-                <label for="message">Enter message</label>
                 <textarea id="message" placeholder="Enter message" value="Hello!! world!!"></textarea>
                 <button onclick="sendMessage()">Send Message</button>
             </div>
@@ -129,7 +127,6 @@
         <div class="section">
             <h2><i class="ph ph-image"></i> Send Image</h2>
             <div class="form-group">
-                <input type="text" id="imageSessionSelect" placeholder="Enter Session ID" value="default">
                 <input type="text" id="imageJid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
                 <input type="text" id="imageUrl" placeholder="Enter Image URL" value="https://www.svgrepo.com/show/508699/landscape-placeholder.svg">
                 <input type="text" id="imageCaption" placeholder="Enter Caption (optional)" value="hello!">
@@ -148,7 +145,6 @@
         <div class="section">
             <h2><i class="ph ph-video"></i> Send Video</h2>
             <div class="form-group">
-                <input type="text" id="videoSessionSelect" placeholder="Enter Session ID" value="default">
                 <input type="text" id="videoJid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
                 <input type="text" id="videoUrl" placeholder="Enter Video URL" value="https://example.com/video.mp4">
                 <input type="text" id="videoCaption" placeholder="Enter Caption (optional)" value="Check out this video!">
@@ -167,6 +163,20 @@
                     </select>
                 </div>
                 <button onclick="sendVideo()">Send Video</button>
+            </div>
+        </div>
+
+        <!-- Add this after the "Send Video" section -->
+        <div class="section">
+            <h2><i class="ph ph-microphone"></i> Send Voice Note</h2>
+            <div class="form-group">
+                <input type="text" id="audioJid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
+                <input type="text" id="audioUrl" placeholder="Enter Audio URL" value="">
+                <div class="form-row">
+                    <label for="audioDuration">Duration (seconds):</label>
+                    <input type="number" id="audioDuration" placeholder="Duration in seconds" value="0" min="0">
+                </div>
+                <button onclick="sendVoiceNote()">Send Voice Note</button>
             </div>
         </div>
     </div>
@@ -233,7 +243,6 @@ app.post('/blockuser', (req, res) => {
         <div class="col" >
         <div class="resource">
             <div class="resource-name">RAM</div>
-            <span id="ramUsed"></span> / <span id="ramTotal"></span>
             <div class="resource-bar" id="ramBar" style="min-width: 200px;">
                 <div class="bar-fill"></div>
                 <div class="bar-text"></div>
@@ -241,7 +250,6 @@ app.post('/blockuser', (req, res) => {
         </div>
         <div class="resource">
             <div class="resource-name">CPU</div>
-            <span id="cpuUsed"></span> / <span id="cpuTotal"></span>
             <div class="resource-bar" id="cpuBar" style="min-width: 200px;">
                 <div class="bar-fill"></div>
                 <div class="bar-text"></div>
@@ -249,7 +257,6 @@ app.post('/blockuser', (req, res) => {
         </div>
         <div class="resource">
             <div class="resource-name">Disk</div>
-            <span id="diskUsed"></span> / <span id="diskTotal"></span>
             <div class="resource-bar" id="diskBar" style="min-width: 200px;">
                 <div class="bar-fill"></div>
                 <div class="bar-text"></div>
@@ -266,9 +273,6 @@ app.post('/blockuser', (req, res) => {
 
     </div>
     <script src="script.js"></script> <!-- PUT CODE HERE: script.js is the main script that handles the websocket connection and the UI -->
-    <style>
-        /* all styles are in ./styles.css */
-   
-    </style>
+
 </body>
 </html> 

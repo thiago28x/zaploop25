@@ -180,7 +180,6 @@ const validatePhoneNumber = (req, res, next) => {
         // Add @s.whatsapp.net suffix if not a group chat
         req.body.jid = cleanPhone + '@s.whatsapp.net';
         
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ validatePhoneNumber #001: Cleaned phone number: ${req.body.jid}`);
         next();
     } catch (error) {
         console.log(` BAILE 🧜‍♀️🧜‍♀️ validatePhoneNumber #032: Error: ${error.message}`);
@@ -193,7 +192,7 @@ const validatePhoneNumber = (req, res, next) => {
 
 const validateMessageBody = (req, res, next) => {
     let { sessionId } = req.body;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ validateMessageBody #002: Validating message body for sessionId: ${sessionId}`);
+   // console.log(` BAILE 🧜‍♀️🧜‍♀️ validateMessageBody #002: Validating message body for sessionId: ${sessionId}`);
 
     if (!sessionId) {
         return res.status(400).json({ 
@@ -445,7 +444,7 @@ baileysApp.post("/send-image", validateMessageBody, async (req, res) => {
 });
 
 // Add this route after the /send-message route
-baileysApp.post("/send-video", validatePhoneNumber, validateMessageBody, async (req, res) => {
+baileysApp.post("/send-video", validatePhoneNumber, async (req, res) => {
     // Variables at the top
     let { sessionId, jid, videoUrl, caption, gifPlayback, viewOnce } = req.body;
     
@@ -502,6 +501,78 @@ baileysApp.post("/send-video", validatePhoneNumber, validateMessageBody, async (
     }
 });
 
+// Add this route after the /send-video route
+baileysApp.post("/send-audio", validatePhoneNumber, async (req, res) => {
+    // Variables at the top
+    let { sessionId, jid, audioUrl, seconds = 0 } = req.body;
+    
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ sendAudio #432: Sending voice note to ${jid} from session ${sessionId}`);
+
+    // Input validation
+    if (!sessionId || !jid || !audioUrl) {
+        return res.status(400).send({ 
+            error: "Missing required fields",
+            details: "sessionId, jid, and audioUrl are required" 
+        });
+    }
+
+    try {
+        let client = getSession(sessionId);
+        if (!client) {
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ sendAudio #433: No session found for ${sessionId}`);
+            return res.status(404).send({ error: "No session found" });
+        }
+
+        // Format JID if needed
+        if (!jid.includes('@')) {
+            jid = `${jid}@s.whatsapp.net`;
+        }
+        
+        // Validate JID format
+        if (!jid.match(/^[0-9]+@(s\.whatsapp\.net|g\.us)$/)) {
+            throw new Error("Invalid JID format");
+        }
+
+        // Update presence to 'recording'
+        await client.sendPresenceUpdate('recording', jid);
+
+        // Random delay for more natural behavior
+        const randomDelay = Math.floor(Math.random() * 3000) + 1000;
+        await new Promise(resolve => setTimeout(resolve, randomDelay));
+
+        // Send voice note
+        await client.sendMessage(jid, {
+            audio: { url: audioUrl },
+            mimetype: 'audio/mp4',
+            ptt: true, // This makes it a voice note
+            seconds: seconds
+        });
+
+        // Set presence back to available
+        await client.sendPresenceUpdate('available', jid);
+
+        res.send({ 
+            status: "success",
+            message: "Voice note sent successfully",
+            details: {
+                duration: seconds
+            }
+        });
+
+    } catch (error) {
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ sendAudio #434: Error sending voice note: ${error}`);
+        // Try to reset presence state in case of error
+        try {
+            await client?.sendPresenceUpdate('available', jid);
+        } catch {}
+        
+        res.status(500).send({ 
+            error: "Failed to send voice note",
+            details: error.message 
+        });
+    }
+});
+
 // Add error handling middleware
 baileysApp.use((err, req, res, next) => {
     console.error(`Global Error Handler: ${err.stack}\n`);
@@ -529,55 +600,65 @@ baileysApp.get('/health', (req, res) => {
 
 // Define the getServerStatus function
 function getServerStatus(req, res) {
-    const diskInfo = fs.statSync('/');
+    // Variables at the top
+    let diskInfo;
     
-    // Add safety checks
-    const blkSize = diskInfo.blksize || 4096; // Use 4096 as fallback block size
-    const totalDisk = (diskInfo.blocks || 0) * blkSize;
-    const freeDisk = (diskInfo.bfree || 0) * blkSize;
-    const usedDisk = totalDisk - freeDisk;
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ getServerStatus #543: Fetching system status`);
+    
+    try {
+        // Use '/' to get root filesystem info
+        diskInfo = fs.statfsSync('/');
+        
+        // Calculate disk space in bytes
+        const totalDisk = diskInfo.blocks * diskInfo.bsize;
+        const freeDisk = diskInfo.bfree * diskInfo.bsize;
+        const usedDisk = totalDisk - freeDisk;
 
-    // Convert bytes to human readable format
-    const formatBytes = (bytes) => {
-        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        let i = 0;
-        while (bytes >= 1024 && i < units.length - 1) {
-            bytes /= 1024;
-            i++;
-        }
-        return `${bytes.toFixed(2)} ${units[i]}`;
-    };
+        // Convert bytes to human readable format
+        const formatBytes = (bytes) => {
+            if (bytes === 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
+        };
 
-    const totalRAM = os.totalmem();
-    const freeRAM = os.freemem();
-    const usedRAM = totalRAM - freeRAM;
-    const cpuCount = os.cpus().length;
-    const cpuUsage = os.loadavg()[0]; // 1-minute load average
-    const cpuFree = cpuCount - cpuUsage;
+        const totalRAM = os.totalmem();
+        const freeRAM = os.freemem();
+        const usedRAM = totalRAM - freeRAM;
+        const cpuCount = os.cpus().length;
+        const cpuUsage = os.loadavg()[0]; // 1-minute load average
+        const cpuFree = cpuCount - cpuUsage;
 
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n\n BAILEYS SERVER: getServerStatus: System resources status:\n` +
-        `RAM - Total: ${formatBytes(totalRAM)}, Used: ${formatBytes(usedRAM)}, Free: ${formatBytes(freeRAM)}\n` +
-        `CPU - Total Cores: ${cpuCount}, Used: ${cpuUsage.toFixed(2)}, Free: ${cpuFree.toFixed(2)}\n` + 
-        `Disk - Total: ${formatBytes(totalDisk)}, Used: ${formatBytes(usedDisk)}, Free: ${formatBytes(freeDisk)}\n`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ getServerStatus #544: System resources:
+            RAM - Total: ${formatBytes(totalRAM)}, Used: ${formatBytes(usedRAM)}
+            Disk - Total: ${formatBytes(totalDisk)}, Used: ${formatBytes(usedDisk)}
+            CPU - Cores: ${cpuCount}, Usage: ${cpuUsage.toFixed(2)}`);
 
-    res.send({
-        status: "success",
-        ram: {
-            total: formatBytes(totalRAM),
-            used: formatBytes(usedRAM), 
-            free: formatBytes(freeRAM)
-        },
-        cpu: {
-            total: cpuCount,
-            used: cpuUsage.toFixed(2),
-            free: cpuFree.toFixed(2)
-        },
-        disk: {
-            total: formatBytes(diskInfo.blocks * diskInfo.blksize),
-            used: formatBytes((diskInfo.blocks - diskInfo.bfree) * diskInfo.blksize),
-            free: formatBytes(diskInfo.bfree * diskInfo.blksize)
-        }
-    });
+        res.send({
+            status: "success",
+            ram: {
+                total: formatBytes(totalRAM),
+                used: formatBytes(usedRAM), 
+                free: formatBytes(freeRAM)
+            },
+            cpu: {
+                total: cpuCount,
+                used: cpuUsage.toFixed(2),
+                free: cpuFree.toFixed(2)
+            },
+            disk: {
+                total: formatBytes(totalDisk),
+                used: formatBytes(usedDisk),
+                free: formatBytes(freeDisk)
+            }
+        });
+    } catch (error) {
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ getServerStatus #545: Error: ${error}`);
+        res.status(500).send({ 
+            error: "Failed to get server status",
+            details: error.message 
+        });
+    }
 }
 
 // Set up the route
@@ -609,7 +690,7 @@ async function gracefulShutdown() {
         
         // Close the Express server first
         if (baileysApp.server) {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ \n ���� BAILEYS SERVER:  \ngracefulShutdown: Closing Express server\n`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ \n  BAILEYS SERVER:  \ngracefulShutdown: Closing Express server\n`);
             await new Promise(resolve => baileysApp.server.close(resolve));
         }
         
@@ -875,10 +956,11 @@ function initializeWebSocket() {
         wss.on('connection', (ws) => {
             console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #544: Client connected`);
             
-            // Send initial connection confirmation
+            // Send initial connection confirmation with sessions info
             ws.send(JSON.stringify({
                 type: 'connection',
-                status: 'connected'
+                status: 'connected',
+                sessions: Array.from(sessions.keys()) // Convert sessions Map keys to array
             }));
             
             ws.on('error', (error) => {
@@ -1062,6 +1144,73 @@ baileysApp.post("/reconnect/:sessionId", async (req, res) => {
     }
 });
 
+// Add this route after other message-related routes
+baileysApp.post("/react-message", async (req, res) => {
+    // Variables at the top
+    let { sessionId, messageId, emoji, jid } = req.body;
+    
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ reactMessage #543: Reacting to message ${messageId} with emoji ${emoji}`);
+
+    // Input validation
+    if (!sessionId || !messageId || !emoji || !jid) {
+        return res.status(400).send({ 
+            error: "Missing required fields",
+            details: "sessionId, messageId, emoji, and jid are required" 
+        });
+    }
+
+    // Validate emoji format (must be a single emoji)
+    const emojiRegex = /^\p{Emoji}$/u;
+    if (!emojiRegex.test(emoji)) {
+        return res.status(400).send({
+            error: "Invalid emoji",
+            details: "Must provide a single valid emoji character"
+        });
+    }
+
+    try {
+        let client = getSession(sessionId);
+        if (!client) {
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ reactMessage #544: No session found for ${sessionId}`);
+            return res.status(404).send({ error: "No session found" });
+        }
+
+        // Format JID if needed
+        if (!jid.includes('@')) {
+            jid = `${jid}@s.whatsapp.net`;
+        }
+        
+        // Validate JID format
+        if (!jid.match(/^[0-9]+@(s\.whatsapp\.net|g\.us)$/)) {
+            throw new Error("Invalid JID format");
+        }
+
+        // Send reaction
+        await client.sendMessage(jid, {
+            react: {
+                text: emoji,
+                key: messageId
+            }
+        });
+
+        res.send({ 
+            status: "success",
+            message: "Reaction sent successfully",
+            details: {
+                messageId,
+                emoji,
+                jid
+            }
+        });
+
+    } catch (error) {
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ reactMessage #545: Error sending reaction: ${error}`);
+        res.status(500).send({ 
+            error: "Failed to send reaction",
+            details: error.message 
+        });
+    }
+});
 
 startServer();
 

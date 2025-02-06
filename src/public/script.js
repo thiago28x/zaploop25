@@ -2,36 +2,10 @@ let ws;
 let qrCheckInterval;
 const ipAddress = '209.145.62.86';
 
-// Initialize Notyf with options
-const notyf = new Notyf({
-    duration: 3000,
-    position: {
-        x: 'right',
-        y: 'top',
-    },
-    types: [
-        {
-            type: 'warning',
-            background: 'orange',
-            icon: {
-                className: 'ph ph-warning',
-                tagName: 'i'
-            }
-        },
-        {
-            type: 'error',
-            background: 'red',
-            duration: 5000,
-            dismissible: true
-        },
-        {
-            type: 'success',
-            background: 'green',
-            duration: 3000,
-            dismissible: true
-        }
-    ]
-});
+
+
+// Initialize Toasty
+const toast = new Toasty();
 
 document.getElementById('detailsSessionSelect').value;
 const detailsSelect = document.getElementById('detailsSessionSelect');
@@ -45,10 +19,10 @@ function updateServer() {
     fetch('/update-server', { method: 'POST' })
         .then(response => response.json())
         .then(data => {
-            notyf[data.type](data.message);
+            toast[data.type](data.message);
         })
         .catch(error => {
-            notyf.error('Failed to update server: ' + error.message);
+            toast.error('Failed to update server: ' + error.message);
         });
 }
 
@@ -118,7 +92,7 @@ async function refreshSessions() {
         }
     } catch (error) {
         console.error(`refreshSessions: Error refreshing sessions: ${error}\n`);
-        notyf.error('Failed to refresh sessions');
+        toast.error('Failed to refresh sessions');
     }
 }
 
@@ -173,19 +147,19 @@ function initializeWebSocket() {
         console.log(`initializeWebSocket #544: Connected successfully`);
     };
     ws.addEventListener('open', () => {
-        notyf.success('WebSocket connection established');
+        toast.success('WebSocket connection established');
     });
 
     ws.addEventListener('message', () => {
-        notyf.info('New message received');
+        toast.info('New message received');
     });
 
     ws.addEventListener('error', () => {
-        notyf.error('WebSocket encountered an error');
+        toast.error('WebSocket encountered an error');
     });
 
     ws.addEventListener('close', () => {
-        notyf.warning('WebSocket connection closed');
+        toast.warning('WebSocket connection closed');
     });
     ws.onmessage = (event) => {
         try {
@@ -227,17 +201,17 @@ async function deleteSession(sessionId) {
 
         if (!response.ok) throw new Error('Failed to delete session');
 
-        notyf.success('Session deleted successfully');
+        toast.success('Session deleted successfully');
         refreshSessions();
     } catch (error) {
         console.error(`deleteSession: Error deleting session: ${error}\n`);
-        notyf.error('Failed to delete session');
+        toast.error('Failed to delete session');
     }
 }
 
 async function createSession() {
     // Declare all variables at the top
-    let sessionId = document.getElementById('sessionId').value;
+    let sessionId = getGlobalSessionId();
     let qrImage = document.getElementById('qr-image');
     let placeholder = document.getElementById('qrcode-placeholder');
     let maxAttempts = 10;
@@ -246,7 +220,7 @@ async function createSession() {
 
     //return if sessionId is empty
     if (!sessionId) {
-        notyf.error('Please enter a session ID');
+        toast.error('Please enter a session ID');
         return;
     }
     
@@ -298,7 +272,7 @@ async function createSession() {
                 if (placeholder) {
                     placeholder.innerHTML = 'Error generating QR code';
                 }
-                notyf.error(error.message || 'Failed to create session');
+                toast.error(error.message || 'Failed to create session');
             }
         }
 
@@ -310,17 +284,17 @@ async function createSession() {
         if (placeholder) {
             placeholder.innerHTML = 'Error generating QR code';
         }
-        notyf.error(error.message || 'Failed to create session');
+        toast.error(error.message || 'Failed to create session');
     }
 }
 
 async function sendMessage() {
-    let sessionId = document.getElementById('sessionSelect').value;
+    let sessionId = getGlobalSessionId();
     let jid = document.getElementById('jid').value.trim();
     let message = document.getElementById('message').value.trim();
 
     if (!sessionId || !jid || !message) {
-        notyf.error('Please fill in all fields');
+        toast.error('Please fill in all fields');
         return;
     }
 
@@ -337,18 +311,18 @@ async function sendMessage() {
 
         if (!response.ok) throw new Error('Failed to send message');
 
-        notyf.success('Session deleted successfully');
+        toast.success('Session deleted successfully');
         document.getElementById('jid').value = '';
         document.getElementById('message').value = '';
     } catch (error) {
         console.error(`sendMessage: Error sending message: ${error}\n`);
-        notyf.error('Failed to send message');
+        toast.error('Failed to send message');
     }
 }
 
 //send image
 async function sendImage() {
-    let sessionId = document.getElementById('imageSessionSelect').value;
+    let sessionId = getGlobalSessionId();
     let jid = document.getElementById('imageJid').value.trim();
     let imageUrl = document.getElementById('imageUrl').value.trim();
     let caption = document.getElementById('imageCaption').value.trim();
@@ -367,12 +341,12 @@ async function sendImage() {
 
         if (!response.ok) throw new Error('Failed to send image');
 
-        notyf.success('Image sent successfully!');
+        toast.success('Image sent successfully!');
       //  document.getElementById('imageUrl').value = '';
       //  document.getElementById('caption').value = '';
     } catch (error) {
         console.error(`sendImage: Error sending image: ${error}\n`);
-        notyf.error('Failed to send image');
+        toast.error('Failed to send image');
     }
 }
 
@@ -401,7 +375,7 @@ async function reconnectSession() {
     console.log(`reconnectSession #891: Attempting to reconnect session: ${sessionId}`);
     
     if (!sessionId) {
-        notyf.error('Please select a session first');
+        toast.error('Please select a session first');
         return;
     }
 
@@ -413,15 +387,15 @@ async function reconnectSession() {
         const data = await response.json();
         
         if (response.ok) {
-            notyf.success(`Session ${sessionId} reconnected successfully`);
+            toast.success(`Session ${sessionId} reconnected successfully`);
             // Refresh the sessions list
             await refreshSessions();
         } else {
-            notyf.error(`Failed to reconnect: ${data.error}`);
+            toast.error(`Failed to reconnect: ${data.error}`);
         }
     } catch (error) {
         console.error(`reconnectSession #892: Error: ${error}`);
-        notyf.error('Failed to reconnect session');
+        toast.error('Failed to reconnect session');
     }
 }
 
@@ -449,8 +423,8 @@ async function getServerStatus() {
 // Wait for DOM content to be loaded before initializing
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize notyf if needed
-    if (typeof notyf !== 'undefined') {
-        notyf.options = {
+    if (typeof toast !== 'undefined') {
+        toast.options = {
             closeButton: true,
             progressBar: true,
             timeOut: 3000
@@ -515,7 +489,7 @@ async function getSessionChats(sessionId) {
         }
     } catch (error) {
         console.error(`getSessionChats: Error fetching chats: ${error}\n`);
-        notyf.error('Failed to fetch chats');
+        toast.error('Failed to fetch chats');
     }
     return [];
 }
@@ -606,7 +580,7 @@ async function loadChats(sessionId) {
     
     if (!chatsList || !placeholder) {
         console.error(`loadChats #332: Required elements not found. chatsList: ${!!chatsList}, placeholder: ${!!placeholder}`);
-        notyf.error('UI elements not found. Please check the HTML structure.');
+        toast.error('UI elements not found. Please check the HTML structure.');
         return;
     }
     
@@ -645,7 +619,7 @@ async function loadChats(sessionId) {
         }
     } catch (error) {
         console.error(`loadChats: Error: ${error}\n`);
-        notyf.error('Failed to load chats');
+        toast.error('Failed to load chats');
     }
 }
 
@@ -696,7 +670,7 @@ async function loadContacts(sessionId) {
         }
     } catch (error) {
         console.error(`loadContacts: Error: ${error}\n`);
-        notyf.error('Failed to load contacts');
+        toast.error('Failed to load contacts');
     }
 }
 
@@ -793,10 +767,10 @@ function copyToClipboard(text) {
     
     try {
         navigator.clipboard.writeText(text);
-        notyf.success('Copied to clipboard');
+        toast.success('Copied to clipboard');
     } catch (error) {
         console.error(`copyToClipboard: Error: ${error}\n`);
-        notyf.error('Failed to copy to clipboard');
+        toast.error('Failed to copy to clipboard');
     }
 }
 
@@ -869,7 +843,7 @@ async function getBlockedPhones() {
         }
     } catch (error) {
         console.error(`getBlockedPhones #766: Error fetching blocked phones: ${error}`);
-        notyf.error('Failed to fetch blocked phones');
+        toast.error('Failed to fetch blocked phones');
     }
 }
 
@@ -880,7 +854,7 @@ async function blockPhone() {
     console.log(`blockPhone #432: Attempting to block phone: ${phoneNumber}`);
     
     if (!phoneNumber) {
-        notyf.error('Please enter a phone number');
+        toast.error('Please enter a phone number');
         return;
     }
 
@@ -898,13 +872,13 @@ async function blockPhone() {
             throw new Error('Failed to block phone');
         }
 
-        notyf.success(`Phone number ${phoneNumber} blocked successfully`);
+        toast.success(`Phone number ${phoneNumber} blocked successfully`);
         document.getElementById('blockedPhoneNumber').value = '';
         
         await getBlockedPhones();
     } catch (error) {
         console.error(`blockPhone #433: Error blocking phone: ${error}`);
-        notyf.error('Failed to block phone number');
+        toast.error('Failed to block phone number');
     }
 }
 
@@ -926,12 +900,12 @@ async function unblockPhone(phoneNumber) {
             throw new Error('Failed to unblock phone');
         }
 
-        notyf.success(`Phone number ${phoneNumber} unblocked successfully`);
+        toast.success(`Phone number ${phoneNumber} unblocked successfully`);
         
         await getBlockedPhones();
     } catch (error) {
         console.error(`unblockPhone #545: Error unblocking phone: ${error}`);
-        notyf.error('Failed to unblock phone number');
+        toast.error('Failed to unblock phone number');
     }
 }
 
@@ -995,7 +969,7 @@ baileysApp.post('/start', async (req, res) => {
 
 async function sendVideo() {
     // Declare variables at the top
-    let sessionId = document.getElementById('videoSessionSelect').value;
+    let sessionId = getGlobalSessionId();
     let jid = document.getElementById('videoJid').value.trim();
     let videoUrl = document.getElementById('videoUrl').value.trim();
     let caption = document.getElementById('videoCaption').value.trim();
@@ -1006,7 +980,7 @@ async function sendVideo() {
 
     // Validate required fields
     if (!sessionId || !jid || !videoUrl) {
-        notyf.error('Please fill in all required fields');
+        toast.error('Please fill in all required fields');
         return;
     }
 
@@ -1030,9 +1004,54 @@ async function sendVideo() {
             throw new Error('Failed to send video');
         }
 
-        notyf.success('Video sent successfully!');
+        toast.success('Video sent successfully!');
     } catch (error) {
         console.error(`sendVideo #777: Error sending video: ${error}`);
-        notyf.error('Failed to send video');
+        toast.error('Failed to send video');
     }
+}
+
+async function sendVoiceNote() {
+    // Variables at the top
+    let sessionId = getGlobalSessionId();
+    let jid = document.getElementById('audioJid').value.trim();
+    let audioUrl = document.getElementById('audioUrl').value.trim();
+    let seconds = parseInt(document.getElementById('audioDuration').value) || 0;
+    
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ sendVoiceNote #432: Sending voice note to ${jid} from session ${sessionId}`);
+
+    // Validate required fields
+    if (!sessionId || !jid || !audioUrl) {
+        toast.error('Please fill in all required fields');
+        return;
+    }
+
+    try {
+        let response = await fetch('/send-audio', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                sessionId, 
+                jid, 
+                audioUrl,
+                seconds
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to send voice note');
+        }
+
+        toast.success('Voice note sent successfully!');
+    } catch (error) {
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ sendVoiceNote #433: Error sending voice note: ${error}`);
+        toast.error('Failed to send voice note');
+    }
+}
+
+// Function to get the global session ID
+function getGlobalSessionId() {
+    return document.getElementById('globalSessionId').value;
 }
