@@ -988,72 +988,94 @@ initializeWebSocket();
 let { exec } = require('child_process');
 
 baileysApp.post('/update-server', (req, res) => {
-    console.log('Current working directory:', process.cwd());
-
-    let scriptPath = path.resolve(__dirname, './updateserverfiles.sh');
-console.log('Resolved script path:', scriptPath);
-
     // Variables at the top
-    let updateResult = null;
+    const scriptPath = path.resolve(__dirname, './updateserverfiles.sh');
     
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ [updateServer] Running update script at path: ${scriptPath} #544`);
-    
-    exec(`bash ${scriptPath}`, (error, stdout, stderr) => {
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #543: Starting server update process`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #544: Script path: ${scriptPath}`);
+
+    // Check if script exists
+    if (!fs.existsSync(scriptPath)) {
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #545: Update script not found at ${scriptPath}`);
+        return res.status(500).json({
+            success: false,
+            message: 'Update script not found',
+            type: 'error'
+        });
+    }
+
+    // Make script executable
+    try {
+        fs.chmodSync(scriptPath, '755');
+    } catch (error) {
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #546: Failed to make script executable: ${error}`);
+    }
+
+    // Execute update script with timeout
+    const updateProcess = exec(`bash ${scriptPath}`, {
+        timeout: 300000 // 5 minute timeout
+    }, (error, stdout, stderr) => {
         if (error) {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ [updateServer] Error executing script: ${error} #545`);
-            return res.status(500).json({ 
-                success: false, 
-                message: 'Failed to update server',
-                error: error.message 
+            console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #547: Script execution error: ${error}`);
+            return res.status(500).json({
+                success: false,
+                message: 'Update script failed',
+                error: error.message,
+                type: 'error'
             });
         }
-        
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ [updateServer] Update script output: ${stdout} #546`);
-        
+
         try {
-            // Extract the JSON result from stdout
+            // Parse update results
             const resultMatch = stdout.match(/UPDATE_RESULT:({.*})/);
-            if (resultMatch) {
-                updateResult = JSON.parse(resultMatch[1]);
+            if (!resultMatch) {
+                throw new Error('Could not parse update results');
             }
 
+            const updateResult = JSON.parse(resultMatch[1]);
+            
+            // Format response message
             let message = '';
             let type = 'info';
 
-            if (updateResult) {
-                if (updateResult.waifu.updated || updateResult.baileys.updated) {
-                    message = 'Updates installed:\n';
-                    type = 'success';
-                    if (updateResult.waifu.updated) {
-                        message += '- Waifu: ' + updateResult.waifu.message + '\n';
-                    }
-                    if (updateResult.baileys.updated) {
-                        message += '- Baileys: ' + updateResult.baileys.message;
-                    }
-                } else {
-                    message = 'All repositories are up to date';
-                    type = 'info';
+            if (updateResult.waifu.updated || updateResult.baileys.updated) {
+                message = 'Updates installed:\n';
+                type = 'success';
+                if (updateResult.waifu.updated) {
+                    message += `- Waifu: ${updateResult.waifu.message}\n`;
+                }
+                if (updateResult.baileys.updated) {
+                    message += `- Baileys: ${updateResult.baileys.message}`;
                 }
             } else {
-                message = 'Update completed but couldn\'t parse results';
-                type = 'warning';
+                message = 'All repositories are up to date';
+                type = 'info';
             }
 
-            res.json({ 
-                success: true, 
-                message: message,
-                type: type,
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #548: Update completed successfully`);
+            
+            res.json({
+                success: true,
+                message,
+                type,
                 details: updateResult
             });
+
         } catch (parseError) {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ [updateServer] Error parsing update result: ${parseError} #547`);
-            res.json({ 
-                success: true, 
-                message: 'Update completed but couldn\'t parse results',
+            console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #549: Failed to parse update results: ${parseError}`);
+            res.status(500).json({
+                success: false,
+                message: 'Update completed but results parsing failed',
+                error: parseError.message,
                 type: 'warning',
-                output: stdout 
+                output: stdout
             });
         }
+    });
+
+    // Handle process errors
+    updateProcess.on('error', (error) => {
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #550: Process error: ${error}`);
     });
 });
 
