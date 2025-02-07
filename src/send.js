@@ -91,11 +91,12 @@ router.post("/send-message", validatePhoneNumber, validateMessageBody, async (re
     console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: /send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
     if (!message) {
-        return res.status(400).send({ error: "Message is required" });
+        return res.status(405).send({ error: "Message is required" });
     }
     if (message.length < 3) {
-        return res.status(400).send({ error: "Message too short" });
+        return res.status(405).send({ error: "Message too short" });
     }
+
   
     try {
         let client = getSession(sessionId);
@@ -121,8 +122,20 @@ router.post("/send-message", validatePhoneNumber, validateMessageBody, async (re
             totalDelay 
         } = calculateTypingDuration(message);
 
+        //trim the message content to 1000 characters
+        message = message.substring(0, 400);
+
+        //remove "." from the message
+        message = message.replace(".", "");
+
+        //replace "você" with "vc"
+        message = message.replace("você", "vc");
+
         // Random initial delay for more natural behavior
         await new Promise(resolve => setTimeout(resolve, initialRandomDelay));
+
+
+
 
         //add a random delay between 1 and 3 seconds
         const randomDelay = Math.floor(Math.random() * 2000) + 1000;
