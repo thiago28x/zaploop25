@@ -989,38 +989,44 @@ let { exec } = require('child_process');
 
 baileysApp.post('/update-server', (req, res) => {
     // Variables at the top
-    const scriptPath = path.resolve(__dirname, './updateserverfiles.sh');
+    const scriptPath = path.join(process.cwd(), 'updateserverfiles.sh');
     
     console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #543: Starting server update process`);
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #544: Script path: ${scriptPath}`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #544: Current directory: ${process.cwd()}`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #545: Script path: ${scriptPath}`);
 
     // Check if script exists
     if (!fs.existsSync(scriptPath)) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #545: Update script not found at ${scriptPath}`);
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #546: Update script not found at ${scriptPath}`);
         return res.status(500).json({
             success: false,
             message: 'Update script not found',
-            type: 'error'
+            type: 'error',
+            path: scriptPath
         });
     }
 
     // Make script executable
     try {
         fs.chmodSync(scriptPath, '755');
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #547: Made script executable`);
     } catch (error) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #546: Failed to make script executable: ${error}`);
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #548: Failed to make script executable: ${error}`);
     }
 
-    // Execute update script with timeout
+    // Execute update script with timeout and working directory set
     const updateProcess = exec(`bash ${scriptPath}`, {
-        timeout: 300000 // 5 minute timeout
+        timeout: 300000, // 5 minute timeout
+        cwd: process.cwd() // Set working directory explicitly
     }, (error, stdout, stderr) => {
         if (error) {
-            console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #547: Script execution error: ${error}`);
+            console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #549: Script execution error: ${error}`);
+            console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #550: stderr: ${stderr}`);
             return res.status(500).json({
                 success: false,
                 message: 'Update script failed',
                 error: error.message,
+                stderr: stderr,
                 type: 'error'
             });
         }
