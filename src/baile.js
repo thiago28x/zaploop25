@@ -994,34 +994,43 @@ baileysApp.post('/update-server', (req, res) => {
     console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #543: Starting server update process`);
     console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #544: Current directory: ${process.cwd()}`);
     console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #545: Script path: ${scriptPath}`);
-
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #546: Script exists: ${fs.existsSync(scriptPath)}`);
+    
     // Check if script exists
     if (!fs.existsSync(scriptPath)) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #546: Update script not found at ${scriptPath}`);
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #547: Update script not found at ${scriptPath}`);
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #548: Listing directory contents:`);
+        console.error(fs.readdirSync(path.dirname(scriptPath)));
+        
         return res.status(500).json({
             success: false,
             message: 'Update script not found',
             type: 'error',
-            path: scriptPath
+            path: scriptPath,
+            cwd: process.cwd(),
+            dirContents: fs.readdirSync(path.dirname(scriptPath))
         });
     }
 
     // Make script executable
     try {
         fs.chmodSync(scriptPath, '755');
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #547: Made script executable`);
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #549: Made script executable`);
     } catch (error) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #548: Failed to make script executable: ${error}`);
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #550: Failed to make script executable: ${error}`);
     }
 
     // Execute update script with timeout and working directory set
     const updateProcess = exec(`bash ${scriptPath}`, {
         timeout: 300000, // 5 minute timeout
-        cwd: process.cwd() // Set working directory explicitly
+        cwd: process.cwd(), // Set working directory explicitly
+        shell: '/bin/bash' // Explicitly use bash
     }, (error, stdout, stderr) => {
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #551: Stdout: ${stdout}`);
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #552: Stderr: ${stderr}`);
+        
         if (error) {
-            console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #549: Script execution error: ${error}`);
-            console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #550: stderr: ${stderr}`);
+            console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #553: Script execution error: ${error}`);
             return res.status(500).json({
                 success: false,
                 message: 'Update script failed',

@@ -5,6 +5,9 @@ set -e
 
 echo "UPDATE_START: $(date)"
 echo "Current directory: $(pwd)"
+echo "Home directory: $HOME"
+echo "Listing root directories:"
+ls -l /root
 
 # Function to handle errors
 handle_error() {
@@ -16,23 +19,39 @@ handle_error() {
 # Set error trap
 trap 'handle_error $LINENO' ERR
 
-# Check if directories exist
+# Check if directories exist with more detailed logging
+echo "Checking waifu directory..."
 if [ ! -d "/root/wd/waifu" ]; then
     echo "Error: /root/wd/waifu directory not found"
+    echo "Attempting to list potential directories:"
+    ls -l /root
+    ls -l /root/wd || echo "No /root/wd directory found"
     handle_error $LINENO
 fi
 
+echo "Checking Baileys directory..."
 if [ ! -d "/root/baileys/Baileys" ]; then
     echo "Error: /root/baileys/Baileys directory not found"
+    echo "Attempting to list potential directories:"
+    ls -l /root
+    ls -l /root/baileys || echo "No /root/baileys directory found"
     handle_error $LINENO
 fi
 
 # Update Waifu repository
 echo "Changing to waifu directory..."
-cd /root/wd/waifu || handle_error $LINENO
+cd /root/wd/waifu || {
+    echo "Failed to change to waifu directory"
+    ls -l /root/wd
+    handle_error $LINENO
+}
 echo "Current directory: $(pwd)"
 echo "Checking wd/waifu repository... #231"
-waifu_output=$(git pull origin master 2>&1) || handle_error $LINENO
+waifu_output=$(git pull origin master 2>&1) || {
+    echo "Git pull failed for waifu repository"
+    echo "$waifu_output"
+    handle_error $LINENO
+}
 echo "wd/waifu pull result: $waifu_output #232"
 
 waifu_updated=false
@@ -47,10 +66,18 @@ fi
 
 # Update Baileys repository
 echo "Changing to baileys directory..."
-cd /root/baileys/Baileys || handle_error $LINENO
+cd /root/baileys/Baileys || {
+    echo "Failed to change to Baileys directory"
+    ls -l /root/baileys
+    handle_error $LINENO
+}
 echo "Current directory: $(pwd)"
 echo "Checking baileys/Baileys repository... #236"
-baileys_output=$(git pull origin master 2>&1) || handle_error $LINENO
+baileys_output=$(git pull origin master 2>&1) || {
+    echo "Git pull failed for Baileys repository"
+    echo "$baileys_output"
+    handle_error $LINENO
+}
 echo "baileys/Baileys pull result: $baileys_output #237"
 
 baileys_updated=false
