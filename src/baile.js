@@ -6,6 +6,10 @@ require('dotenv').config();
 const os = require('os');
 const WebSocket = require('ws');
 const QRCode = require('qrcode');
+
+// Import the new send routes
+const sendRoutes = require('./send');
+
 let isStarting = false;
 let lastStartAttempt = 0;
 const MIN_RESTART_INTERVAL = 30000; // 30 seconds
@@ -67,6 +71,9 @@ baileysApp.use((req, res, next) => {
 
 // Add static files middleware
 baileysApp.use(express.static(path.join(__dirname, 'public')));
+
+// Mount send routes
+baileysApp.use('/send', sendRoutes);
 
 baileysApp.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -204,6 +211,8 @@ const validateMessageBody = (req, res, next) => {
     next();
 };
 
+
+//send-text
 baileysApp.post("/send-message", validatePhoneNumber, validateMessageBody, async (req, res) => {
   let { sessionId, jid, message } = req.body;
   //console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: /send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
@@ -501,7 +510,6 @@ baileysApp.post("/send-video", validatePhoneNumber, async (req, res) => {
     }
 });
 
-// Add this route after the /send-video route
 baileysApp.post("/send-audio", validatePhoneNumber, async (req, res) => {
     // Variables at the top
     let { sessionId, jid, audioUrl, seconds = 0 } = req.body;
