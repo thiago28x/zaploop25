@@ -1,12 +1,18 @@
-let makeWASocket = require("@whiskeysockets/baileys").default;
-let { useMultiFileAuthState, DisconnectReason } = require("@whiskeysockets/baileys");
+const qrcode = require('qrcode');
+const makeWASocket = require('@whiskeysockets/baileys').default;
+const { 
+    useMultiFileAuthState, 
+    DisconnectReason, 
+    makeInMemoryStore 
+} = require('@whiskeysockets/baileys');
 let path = require('path');
 let fs = require('fs');
 let fetch = require('node-fetch');
 let sessions = new Map();
 let sessionsDir = path.join(process.cwd(), 'whatsapp-sessions');
-let { makeInMemoryStore } = require("@whiskeysockets/baileys");
-let QRCode = require('qrcode');
+const handleNewMessage = require('./newmessage');
+const { storeMedia } = require('./downloadmedia');
+const WebSocket = require('ws');
 
 
 /* THIS IS A API WHICH USES BAILEYS TO CONNECT TO WHATSAPP WEB AND FORWARD MESSAGES TO THE WEBHOOK  
@@ -24,7 +30,11 @@ const storeConfig = {
     // Message retention time (24 hours)
     messageRetentionTime: 24 * 60 * 60 * 1000,
     // Enable message history syncing
-    syncFullHistory: true
+    syncFullHistory: true,
+    // Add contacts configuration
+    contacts: {
+        syncOnConnect: true  // Ensure contacts sync on connection
+    }
 };
 
 // Add at the top with other constants
@@ -83,7 +93,7 @@ async function startBaileysConnection(sessionId = 'default') {
     let now = Date.now();
     
     if (retryInfo.count >= MAX_SESSION_RETRIES) {
-        console.log(`startBaileysConnection #876: Session ${sessionId} exceeded maximum retry attempts`);
+        console.log(`startBaileysConnection #870: Session ${sessionId} exceeded maximum retry attempts`);
         await cleanupSession(sessionId, null, sessionDir);
         SESSION_RETRY_DELAYS.delete(sessionId);
         throw new Error('Maximum retry attempts exceeded');
@@ -161,14 +171,14 @@ async function startBaileysConnection(sessionId = 'default') {
 
                 // Check if we've exceeded the QR timeout
                 if (Date.now() - qrStartTime > QR_TIMEOUT) {
-                    console.log(`startBaileysConnection #876: QR code timeout reached for ${sessionId}`);
+                    console.log(`startBaileysConnection #878: QR code timeout reached for ${sessionId}`);
                     await cleanupSession(sessionId, sock, sessionDir);
                     throw new Error('QR code timeout reached');
                 }
 
                 qrCode = qr;
                 try {
-                    qrCodeImage = await QRCode.toDataURL(qr, {
+                    qrCodeImage = await qrcode.toDataURL(qr, {
                         errorCorrectionLevel: 'H',
                         margin: 1,
                         scale: 8,
@@ -181,107 +191,45 @@ async function startBaileysConnection(sessionId = 'default') {
             }
         });
 
-        // Add message handling
+        // Modify the messages.upsert event handler
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
-            let webhookUrl = process.env.WEBHOOK_URL;
-            
-            console.log(`startBaileysConnection: Processing messages.upsert event for session ${sessionId}\n`);
-            
-            //if fromMe, skip
-            if (messages[0]?.key?.fromMe) {
-                return;
-            }
-
-            console.log(`startBaileysConnection: New message in ${sessionId}, type: ${type}\n`);
-            
-            for (let message of messages) {
-                let msg = message.message;
-                if (!msg) {
-                    console.log(`startBaileysConnection: Skipping empty message\n`);
-                    continue;
+            // Check for media in messages
+            for (const message of messages) {
+                if (message.message) {
+                    const mediaPath = await storeMedia(sessionId, message, sock);
+                    if (mediaPath) {
+                        console.log(`startBaileysConnection: Media stored at ${mediaPath}`);
+                    }
                 }
-
-                try {
-                    // Extract message content based on type
-                    let messageContent = {
-                        id: message.key.id,
-                        from: message.key.remoteJid?.trim()
-                            .replace(/@s\.whatsapp\.net/g, '')
-                            .replace(/@c\.us/g, '')
-                            .replace(/\D/g, ''),
-                        timestamp: message.messageTimestamp,
-                        type: Object.keys(msg)[0], // Gets the message type (conversation, imageMessage, etc.)
-                        text: msg.conversation || 
-                             msg.extendedTextMessage?.text || 
-                             msg.imageMessage?.caption ||
-                             msg.videoMessage?.caption ||
-                             msg.documentMessage?.caption || 
-                             null,
-                        // Media content
-                        mediaUrl: msg.imageMessage?.url || 
-                                msg.videoMessage?.url || 
-                                msg.documentMessage?.url || 
-                                null,
-                        mimetype: msg.imageMessage?.mimetype || 
-                                 msg.videoMessage?.mimetype || 
-                                 msg.documentMessage?.mimetype || 
-                                 null,
-                        // Document specific
-                        fileName: msg.documentMessage?.fileName || null,
-                        // Contact card
-                        vCard: msg.contactMessage?.vcard || null,
-                        // Location
-                        location: msg.locationMessage ? {
-                            latitude: msg.locationMessage.degreesLatitude,
-                            longitude: msg.locationMessage.degreesLongitude,
-                            name: msg.locationMessage.name || null
-                        } : null,
-                        // Raw message object for complete data
-                        rawMessage: message
-                    };
-
-                    let webhookPayload = {
+            }
+            
+            await handleNewMessage(sessionId, messages, type);
+            
+            // Add WebSocket broadcast for incoming messages
+            if (type === 'notify') {
+                for (const message of messages) {
+                    // Extract relevant message content
+                    const messageContent = {
                         sessionId,
-                        messageType: type,
-                        message: messageContent,
-                        timestamp: new Date().toISOString()
+                        jid: message.key.remoteJid,
+                        sender: message.key.fromMe ? 'me' : message.pushName || message.key.remoteJid,
+                        text: message.message?.conversation || 
+                              message.message?.extendedTextMessage?.text ||
+                              message.message?.imageMessage?.caption ||
+                              message.message?.videoMessage?.caption ||
+                              null,
+                        timestamp: message.messageTimestamp,
+                        type: 'incoming_message'
                     };
 
-                    console.log(`🐸 startBaileysConnection: Sending webhook payload for message ${message.key.id}\n`);
-                   // console.log(`startBaileysConnection: Message content type: ${messageContent.type}\n`);
-                    
-                    console.log(`startBaileysConnection #654: Fire-and-forget webhook for message ${message.key.id}`);
-                    
-                    // Fire and forget the webhook request
-                    fetch(webhookUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Origin': 'zaploop',
-                        },
-                        body: JSON.stringify(webhookPayload)
-                    }).catch(error => {
-                        console.error(`startBaileysConnection #876: Webhook error (async): ${error}`);
-                    });
-
-                    /* 
-                    TO DO LATER - faster execution via curl ⌚
-                    const { exec } = require('child_process');
-
-function sendRequestWithoutWait() {
-    exec(`curl -X POST http://localhost:3000/api -H "Content-Type: application/json" -d '{"data":"your data"}'`, 
-        (error) => {
-            if (error) console.error('Request failed', error);
-        });
-}
-
-                    
-                    */
-
-                    // Remove the response check since we're not waiting
-                    // console.log(`startBaileysConnection: Successfully forwarded message...`);
-                } catch (error) {
-                    console.error(`startBaileysConnection: Error processing message ${message?.key?.id}: ${error}\n`);
+                    // Broadcast to all connected WebSocket clients
+                    if (global.wss) {
+                        global.wss.clients.forEach((client) => {
+                            if (client.readyState === WebSocket.OPEN) {
+                                client.send(JSON.stringify(messageContent));
+                            }
+                        });
+                    }
                 }
             }
         });
@@ -297,7 +245,7 @@ function sendRequestWithoutWait() {
                 }
 
                 if (Date.now() - qrStartTime > QR_TIMEOUT) {
-                    console.log(`startBaileysConnection #876: QR code timeout reached for ${sessionId}`);
+                    console.log(`startBaileysConnection #873: QR code timeout reached for ${sessionId}`);
                     await cleanupSession(sessionId, sock, sessionDir);
                     throw new Error('QR code timeout reached');
                 }
@@ -376,6 +324,32 @@ function sendRequestWithoutWait() {
                 }
             } catch (error) {
                 console.error(`startBaileysConnection: Error writing message history to store: ${error}\n`);
+            }
+        });
+
+        // Add these inside startBaileysConnection after creating the sock
+        // Handle contact updates
+        sock.ev.on('contacts.upsert', async contacts => {
+            console.log(`⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐\ncontacts.upsert: Received ${contacts.length} contacts update for session ${sessionId}`);
+            try {
+                // Save to store
+                if (ensureSessionDir(sessionDir)) {
+                    await store.writeToFile(path.join(sessionDir, 'store.json'));
+                }
+            } catch (error) {
+                console.error(`contacts.upsert: Error saving contacts for ${sessionId}:`, error);
+            }
+        });
+
+        // Handle initial contacts set
+        sock.ev.on('contacts.set', async ({ contacts }) => {
+            console.log(`contacts.set: Received initial contacts for session ${sessionId}`);
+            try {
+                if (ensureSessionDir(sessionDir)) {
+                    await store.writeToFile(path.join(sessionDir, 'store.json'));
+                }
+            } catch (error) {
+                console.error(`contacts.set: Error saving initial contacts for ${sessionId}:`, error);
             }
         });
 
@@ -485,29 +459,72 @@ function handleStoreError(error, operation) {
     return null;
 }
 
+// Add this new function after the store configuration
+async function fetchSessionContacts(sessionId) {
+    const session = sessions.get(sessionId);
+    
+    console.log(`fetchSessionContacts: Attempting to fetch contacts for session ${sessionId}`);
+    
+    if (!session?.sock) {
+        console.log(`fetchSessionContacts: No valid session found for ${sessionId}`);
+        return null;
+    }
 
+    try {
+        // Get contacts directly from the socket
+        const contacts = await session.sock.store.contacts;
+        console.log(`fetchSessionContacts: Raw contacts object:`, contacts);
+        
+        if (!contacts) {
+            console.log(`fetchSessionContacts: No contacts found in store for ${sessionId}`);
+            return [];
+        }
 
+        // Convert contacts object to array and filter out non-contact entries
+        const contactsArray = Object.entries(contacts)
+            .filter(([id]) => id.endsWith('@s.whatsapp.net'))
+            .map(([id, contact]) => ({
+                id: id,
+                name: contact.name || contact.notify || (id ? id.split('@')[0] : 'Unknown'),
+                number: id ? id.split('@')[0] : '',
+                notify: contact.notify || '',
+                verifiedName: contact.verifiedName || '',
+                pushName: contact.pushName || '',
+                status: contact.status || '',
+                imgUrl: contact.imgUrl || '',
+                isBusiness: Boolean(contact.isBusiness),
+                isGroup: id.endsWith('@g.us'),
+                isUser: id.endsWith('@s.whatsapp.net'),
+                lastSeen: contact.lastSeen || null
+            }));
 
+        console.log(`fetchSessionContacts: Found ${contactsArray.length} contacts for ${sessionId}`);
+        return contactsArray;
+    } catch (error) {
+        console.error(`fetchSessionContacts: Error fetching contacts:`, error);
+        return null;
+    }
+}
 
-// Remove the try-catch block at the bottom and create a new function
+// Modify the getStoreData function
 async function getStoreData(store, sessionId) {
     // Variables at the top
     let storeData = {
-        contacts: {},
+        contacts: [],
         chats: [],
         messages: []
     };
 
     try {
-        console.log(`getStoreData #543: Fetching store data for session ${sessionId}`);
+        console.log(`getStoreData: Fetching store data for session ${sessionId}`);
         
-        // Fetch contacts - Contacts are stored as object in store.contacts
+        // Fetch contacts using the new function
         try {
-            storeData.contacts = Object.values(store.contacts);
-            console.log(`getStoreData #876: Retrieved ${storeData.contacts.length} contacts`);
+            storeData.contacts = await fetchSessionContacts(sessionId) || [];
+            console.log(`getStoreData: Retrieved ${storeData.contacts.length} contacts`);
         } catch (error) {
-            console.error(`getStoreData #654: Error fetching contacts: ${error}`);
-            handleStoreError(error, 'contacts fetch');
+            console.error(`getStoreData: Error fetching contacts: ${error}`);
+            storeData.contacts = [];
         }
 
         // Fetch chats - Chats are accessible via store.chats.all()
@@ -534,8 +551,7 @@ async function getStoreData(store, sessionId) {
 
         return storeData;
     } catch (error) {
-        console.error(`getStoreData #777: General store error: ${error}`);
-        handleStoreError(error, 'general store operation');
+        console.error(`getStoreData: General store error: ${error}`);
         return storeData;
     }
 }
@@ -551,5 +567,6 @@ module.exports = {
     isSessionActive,
     cleanupSession,
     fetchChatHistory,
-    getStoreData  // Add the new function to exports
+    getStoreData,
+    fetchSessionContacts  // Add the new function to exports
 };

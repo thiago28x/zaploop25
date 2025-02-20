@@ -7,9 +7,7 @@
     <link rel="stylesheet" href="styles.css">
     <!-- favicon https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Google_Messages_icon_%282022%29.svg/192px-Google_Messages_icon_%282022%29.svg.png-->
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Google_Messages_icon_%282022%29.svg/192px-Google_Messages_icon_%282022%29.svg.png" type="image/png">
-    <link href="dist/toasty.min.css" rel="stylesheet">
-    <script src="dist/toasty.min.js"></script>
-   
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
     <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/regular/style.css">
 </head>
@@ -27,7 +25,7 @@
 <button onclick="new Notyf().success('This is a success notification!');">Test Alert</button>
 
 
-    <div class="container" style="margin-top: 30px;">
+    <div class="container" style="margin-top: 90px;">
         
         <div class="section">
             <h2><i class="ph ph-plus-circle"></i> Create New Session</h2>
@@ -241,38 +239,45 @@ app.post('/blockuser', (req, res) => {
  
     <div id="serverStatus" class="section">
         <div class="col" >
-        <div class="resource">
-            <div class="resource-name">RAM</div>
-            <div class="resource-bar" id="ramBar" style="min-width: 200px;">
-                <div class="bar-fill"></div>
-                <div class="bar-text"></div>
+            <div class="resource">
+                <div class="resource-name">RAM</div>
+                <div class="resource-bar" id="ramBar" style="min-width: 200px;">
+                    <div class="bar-fill"></div>
+                    <div class="bar-text"></div>
+                </div>
+            </div>
+            <div class="resource">
+                <div class="resource-name">CPU</div>
+                <div class="resource-bar" id="cpuBar" style="min-width: 200px;">
+                    <div class="bar-fill"></div>
+                    <div class="bar-text"></div>
+                </div>
+            </div>
+            <div class="resource">
+                <div class="resource-name">Disk</div>
+                <div class="resource-bar" id="diskBar" style="min-width: 200px;">
+                    <div class="bar-fill"></div>
+                    <div class="bar-text"></div>
+                </div>
             </div>
         </div>
-        <div class="resource">
-            <div class="resource-name">CPU</div>
-            <div class="resource-bar" id="cpuBar" style="min-width: 200px;">
-                <div class="bar-fill"></div>
-                <div class="bar-text"></div>
-            </div>
-        </div>
-        <div class="resource">
-            <div class="resource-name">Disk</div>
-            <div class="resource-bar" id="diskBar" style="min-width: 200px;">
-                <div class="bar-fill"></div>
-                <div class="bar-text"></div>
-            </div>
-        </div>
+        <span hoverable id="refresh-server-status" class="" onclick="getServerStatus()" style="cursor: pointer;">
+            <i class="ph ph-arrows-clockwise"></i> Refresh Status
+        </span>
+        <!-- Added icon to check server status using Toasty notification -->
+        <span id="check-server-status" style="cursor: pointer; margin-left: 10px; height: 10px; width: 10px;" onclick="checkServerStatusToast()">
+            <i class="ph ph-server"></i>Status
+        </span>
     </div>
-    <span hoverable id="refresh-server-status" class="" onclick="getServerStatus()" style="cursor: pointer;">
-        <i class="ph ph-arrows-clockwise"></i> Refresh Status
-    </span>
 
 </div>
 
 </div>
 
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+
     <script src="script.js"></script> <!-- PUT CODE HERE: script.js is the main script that handles the websocket connection and the UI -->
-
+ 
 </body>
 </html> 

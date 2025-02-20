@@ -1,8 +1,9 @@
+require('dotenv').config();
+
 const express = require('express');
 const { startBaileysConnection, getSession, restoreSessions, sessions, connectionStates, getStoreData } = require('./createBaileysConnection');
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config();
 const os = require('os');
 const WebSocket = require('ws');
 const QRCode = require('qrcode');
@@ -14,7 +15,7 @@ let isStarting = false;
 let lastStartAttempt = 0;
 const MIN_RESTART_INTERVAL = 30000; // 30 seconds
 const baileysApp = express();
-const serverIP = "http://209.145.62.86:4001/"
+const serverIP = process.env.SERVER_IP;
 let wss;
 
 /* this is a Express server to send and receive whatsapp messages using baileys.*/
@@ -611,7 +612,6 @@ function getServerStatus(req, res) {
     // Variables at the top
     let diskInfo;
     
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ getServerStatus #543: Fetching system status`);
     
     try {
         // Use '/' to get root filesystem info
@@ -637,11 +637,11 @@ function getServerStatus(req, res) {
         const cpuUsage = os.loadavg()[0]; // 1-minute load average
         const cpuFree = cpuCount - cpuUsage;
 
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ getServerStatus #544: System resources:
+  /*       console.log(` BAILE 🧜‍♀️🧜‍♀️ getServerStatus #544: System resources:
             RAM - Total: ${formatBytes(totalRAM)}, Used: ${formatBytes(usedRAM)}
             Disk - Total: ${formatBytes(totalDisk)}, Used: ${formatBytes(usedDisk)}
             CPU - Cores: ${cpuCount}, Usage: ${cpuUsage.toFixed(2)}`);
-
+ */
         res.send({
             status: "success",
             ram: {
@@ -661,7 +661,6 @@ function getServerStatus(req, res) {
             }
         });
     } catch (error) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ getServerStatus #545: Error: ${error}`);
         res.status(500).send({ 
             error: "Failed to get server status",
             details: error.message 
@@ -680,7 +679,7 @@ async function gracefulShutdown() {
     let isShuttingDown = false;  // Prevent multiple shutdown attempts
     let shutdownTimeout = 10000; // 10 seconds timeout
     
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n  BAILEYS SERVER:  \n\n 🍪 BAILEYS SERVER:  \n gracefulShutdown: Received shutdown signal\n`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n  BAILEYS SERVER:  \n\n  BAILEYS SERVER:  \n gracefulShutdown: Received shutdown signal\n`);
     
     if (isShuttingDown) {
         console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Shutdown already in progress\n`);
@@ -750,54 +749,53 @@ baileysApp.get("/session-chats/:sessionId", async (req, res) => {
 baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
     // Variables at top
     let { sessionId } = req.params;
-    let contacts = [];
-    let storeContacts = null;
     
     console.log(` BAILE 🧜‍♀️🧜‍♀️ getSessionContacts #543: Fetching contacts for session ${sessionId}`);
     
     try {
         let session = sessions.get(sessionId);
-        if (!session?.store) {
-            throw new Error("Session or store not found");
+        if (!session?.sock) {
+            throw new Error("Session not found or not connected");
         }
 
-        // Try to get contacts with error handling
         try {
-            storeContacts = await session.store.contacts.all();
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ getSessionContacts #544: Successfully retrieved ${storeContacts.length} raw contacts`);
-        } catch (storeError) {
-            console.error(`getSessionContacts #545: Store error: ${storeError}`);
-            // Fallback to empty array if store fails
-            storeContacts = [];
+            // Get contacts from the store
+            const contacts = session.sock.store.contacts;
+            
+            // Transform contacts
+            const transformedContacts = Object.entries(contacts || {})
+                .filter(([id]) => id.endsWith('@s.whatsapp.net'))
+                .map(([id, contact]) => ({
+                    id: id,
+                    name: contact.name || contact.notify || (id ? id.split('@')[0] : 'Unknown'),
+                    number: id ? id.split('@')[0] : '',
+                    notify: contact.notify || '',
+                    verifiedName: contact.verifiedName || '',
+                    pushName: contact.pushName || '',
+                    status: contact.status || '',
+                    imgUrl: contact.imgUrl || '',
+                    isBusiness: Boolean(contact.isBusiness),
+                    isGroup: false,
+                    isUser: true,
+                    lastSeen: contact.lastSeen || null
+                }));
+
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ getSessionContacts #544: Found ${transformedContacts.length} contacts`);
+            
+            res.send({
+                status: "success",
+                sessionId,
+                contacts: transformedContacts,
+                count: transformedContacts.length,
+                timestamp: new Date().toISOString()
+            });
+
+        } catch (error) {
+            console.error(`getSessionContacts #545: Store error:`, error);
+            throw error;
         }
-        
-        // Transform contacts with validation
-        contacts = storeContacts.map(contact => ({
-            id: contact.id || '',
-            name: contact.name || contact.notify || (contact.id ? contact.id.split('@')[0] : 'Unknown'),
-            number: contact.id ? contact.id.split('@')[0] : '',
-            notify: contact.notify || '',
-            verifiedName: contact.verifiedName || '',
-            pushName: contact.pushName || '',
-            status: contact.status || '',
-            imgUrl: contact.imgUrl || '',
-            isBusiness: Boolean(contact.isBusiness),
-            isGroup: contact.id ? contact.id.endsWith('@g.us') : false,
-            isUser: contact.id ? contact.id.endsWith('@s.whatsapp.net') : false,
-            lastSeen: contact.lastSeen || null
-        }));
-
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ getSessionContacts #546: Transformed ${contacts.length} contacts for ${sessionId}`);
-
-        res.send({
-            status: "success",
-            sessionId,
-            contacts: contacts,
-            count: contacts.length,
-            timestamp: new Date().toISOString()
-        });
     } catch (error) {
-        console.error(`getSessionContacts #547: Error: ${error}`);
+        console.error(`getSessionContacts #546: Error:`, error);
         res.status(500).send({ 
             error: "Failed to fetch contacts",
             details: error.message,
@@ -1253,6 +1251,71 @@ baileysApp.post("/react-message", async (req, res) => {
         res.status(500).send({ 
             error: "Failed to send reaction",
             details: error.message 
+        });
+    }
+});
+
+// Add this new route after other contact-related routes
+baileysApp.get("/contacts", async (req, res) => {
+    // Variables at top
+    const sessionId = 'default';
+    
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ getContacts #543: Fetching contacts from default session`);
+    
+    try {
+        let session = sessions.get(sessionId);
+        if (!session?.sock) {
+            throw new Error("Default session not found or not connected");
+        }
+
+        try {
+            // Get contacts from the session's store
+            const store = session.store;
+            if (!store) {
+                throw new Error("Store not found for default session");
+            }
+
+            // Get contacts from store
+            const contacts = store.contacts;
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ getContacts #544: Raw contacts from store:`, contacts);
+            
+            // Transform contacts
+            const transformedContacts = Object.entries(contacts || {})
+                .filter(([id]) => id.endsWith('@s.whatsapp.net'))
+                .map(([id, contact]) => ({
+                    id: id,
+                    name: contact.name || contact.notify || (id ? id.split('@')[0] : 'Unknown'),
+                    number: id ? id.split('@')[0] : '',
+                    notify: contact.notify || '',
+                    verifiedName: contact.verifiedName || '',
+                    pushName: contact.pushName || '',
+                    status: contact.status || '',
+                    imgUrl: contact.imgUrl || '',
+                    isBusiness: Boolean(contact.isBusiness),
+                    isGroup: false,
+                    isUser: true,
+                    lastSeen: contact.lastSeen || null
+                }))
+                .sort((a, b) => (a.name || '').localeCompare(b.name || '')); // Sort by name
+
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ getContacts #544: Found ${transformedContacts.length} contacts in default session`);
+            
+            res.send({
+                status: "success",
+                contacts: transformedContacts,
+                count: transformedContacts.length,
+                timestamp: new Date().toISOString()
+            });
+
+        } catch (error) {
+            console.error(`getContacts #545: Store error:`, error);
+            throw error;
+        }
+    } catch (error) {
+        console.error(`getContacts #546: Error:`, error);
+        res.status(500).send({ 
+            error: "Failed to fetch contacts from default session",
+            details: error.message
         });
     }
 });

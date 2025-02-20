@@ -1,16 +1,36 @@
+// Initialize Notyf at the very top of the file, before any other code
+let notyf;
+
+// Initialize notyf in a self-executing function to ensure it runs immediately
+(function initializeNotyf() {
+    notyf = new Notyf({
+        duration: 3000,
+        position: {
+            x: 'right',
+            y: 'top',
+        },
+        types: [
+            {
+                type: 'warning',
+                background: 'orange',
+                icon: false
+            },
+            {
+                type: 'info',
+                background: '#0099ff',
+                icon: false
+            }
+        ]
+    });
+})();
+
 let ws;
 let qrCheckInterval;
 const ipAddress = '209.145.62.86';
 
-
-
-// Initialize Toasty
-const toast = new Toasty();
-
 document.getElementById('detailsSessionSelect').value;
 const detailsSelect = document.getElementById('detailsSessionSelect');
 detailsSelect.value = detailsSelect.options.length > 0 ? detailsSelect.options[0].value : 'default';
-
 
 //log the browser user css dark mode preference
 console.log(`Browser user CSS dark mode preference: ${window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'Dark' : 'Light'}`);
@@ -19,10 +39,10 @@ function updateServer() {
     fetch('/update-server', { method: 'POST' })
         .then(response => response.json())
         .then(data => {
-            toast[data.type](data.message);
+            notyf[data.type](data.message);
         })
         .catch(error => {
-            toast.error('Failed to update server: ' + error.message);
+            notyf.error('Failed to update server: ' + error.message);
         });
 }
 
@@ -92,12 +112,9 @@ async function refreshSessions() {
         }
     } catch (error) {
         console.error(`refreshSessions: Error refreshing sessions: ${error}\n`);
-        toast.error('Failed to refresh sessions');
+        notyf.error('Failed to refresh sessions');
     }
 }
-
-
-
 
 async function startQRCheck(sessionId) {
     // Declare variables at the top
@@ -140,32 +157,39 @@ async function startQRCheck(sessionId) {
 }
 
 function initializeWebSocket() {
-    ws = new WebSocket(`ws://${ipAddress}:4002`);
+    // If WebSocket exists and is in OPEN state, don't create new connection
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log(`initializeWebSocket: Connection already exists and is open`);
+        return;
+    }
+    
     console.log(`initializeWebSocket #003: Attempting connection`);
+    ws = new WebSocket(`ws://${ipAddress}:4002`);
 
     ws.onopen = () => {
-        console.log(`initializeWebSocket #544: Connected successfully`);
+        console.log(`WebSocket: Connected successfully`);
     };
     ws.addEventListener('open', () => {
-        toast.success('WebSocket connection established');
+        notyf.success('WebSocket connection established');
     });
 
     ws.addEventListener('message', () => {
-        toast.info('New message received');
+        notyf.success('New message received');
     });
 
     ws.addEventListener('error', () => {
-        toast.error('WebSocket encountered an error');
+        notyf.error('WebSocket encountered an error');
     });
 
     ws.addEventListener('close', () => {
-        toast.warning('WebSocket connection closed');
+        notyf.warning('WebSocket connection closed');
     });
     ws.onmessage = (event) => {
         try {
             let data = JSON.parse(event.data);
-            console.log(`initializeWebSocket #545: Received message type: ${data.type}`);
+            console.log(`WebSocket message received:`, data);
             
+            // Handle existing QR code case
             if (data.type === 'qr') {
                 let qrImage = document.getElementById('qr-image');
                 let placeholder = document.getElementById('qrcode-placeholder');
@@ -176,8 +200,31 @@ function initializeWebSocket() {
                     placeholder.style.display = 'none';
                 }
             }
+            
+            // Add handler for incoming messages
+            if (data.type === 'incoming_message') {
+                // Show notification
+                notyf.success(`New message from ${data.sender}`);
+                
+                // Create message element
+                const messageHtml = `
+                    <div class="message-item">
+                        <div class="message-header">
+                            <span class="message-sender">${data.sender}</span>
+                            <span class="message-time">${new Date(data.timestamp * 1000).toLocaleTimeString()}</span>
+                        </div>
+                        <div class="message-text">${data.text}</div>
+                    </div>
+                `;
+                
+                // Add to messages container
+                const messagesContainer = document.getElementById('messages-container');
+                if (messagesContainer) {
+                    messagesContainer.insertAdjacentHTML('afterbegin', messageHtml);
+                }
+            }
         } catch (error) {
-            console.error(`initializeWebSocket #546: Error processing message: ${error}`);
+            console.error(`Error processing WebSocket message: ${error}`);
         }
     };
 
@@ -201,11 +248,11 @@ async function deleteSession(sessionId) {
 
         if (!response.ok) throw new Error('Failed to delete session');
 
-        toast.success('Session deleted successfully');
+        notyf.success('Session deleted successfully');
         refreshSessions();
     } catch (error) {
         console.error(`deleteSession: Error deleting session: ${error}\n`);
-        toast.error('Failed to delete session');
+        notyf.error('Failed to delete session');
     }
 }
 
@@ -220,7 +267,7 @@ async function createSession() {
 
     //return if sessionId is empty
     if (!sessionId) {
-        toast.error('Please enter a session ID');
+        notyf.error('Please enter a session ID');
         return;
     }
     
@@ -272,7 +319,7 @@ async function createSession() {
                 if (placeholder) {
                     placeholder.innerHTML = 'Error generating QR code';
                 }
-                toast.error(error.message || 'Failed to create session');
+                notyf.error(error.message || 'Failed to create session');
             }
         }
 
@@ -284,7 +331,7 @@ async function createSession() {
         if (placeholder) {
             placeholder.innerHTML = 'Error generating QR code';
         }
-        toast.error(error.message || 'Failed to create session');
+        notyf.error(error.message || 'Failed to create session');
     }
 }
 
@@ -294,11 +341,11 @@ async function sendMessage() {
     let message = document.getElementById('message').value.trim();
 
     if (!sessionId || !jid || !message) {
-        toast.error('Please fill in all fields');
+        notyf.error('Please fill in all fields');
         return;
     }
 
-    console.log(`sendMessage: sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
+    console.log(`sending message:\nsessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
 
     try {
         let response = await fetch('/send-message', {
@@ -310,13 +357,15 @@ async function sendMessage() {
         });
 
         if (!response.ok) throw new Error('Failed to send message');
+        if (response.ok) {
+    console.log(`sendMessage #432: Response: ${response}`);
 
-        toast.success('Session deleted successfully');
-        document.getElementById('jid').value = '';
+            notyf.success('Message sent');
+        }
         document.getElementById('message').value = '';
     } catch (error) {
         console.error(`sendMessage: Error sending message: ${error}\n`);
-        toast.error('Failed to send message');
+        notyf.error('Failed to send message');
     }
 }
 
@@ -341,12 +390,12 @@ async function sendImage() {
 
         if (!response.ok) throw new Error('Failed to send image');
 
-        toast.success('Image sent successfully!');
+        notyf.success('Image sent successfully!');
       //  document.getElementById('imageUrl').value = '';
       //  document.getElementById('caption').value = '';
     } catch (error) {
         console.error(`sendImage: Error sending image: ${error}\n`);
-        toast.error('Failed to send image');
+        notyf.error('Failed to send image');
     }
 }
 
@@ -375,7 +424,7 @@ async function reconnectSession() {
     console.log(`reconnectSession #891: Attempting to reconnect session: ${sessionId}`);
     
     if (!sessionId) {
-        toast.error('Please select a session first');
+        notyf.error('Please select a session first');
         return;
     }
 
@@ -387,25 +436,21 @@ async function reconnectSession() {
         const data = await response.json();
         
         if (response.ok) {
-            toast.success(`Session ${sessionId} reconnected successfully`);
+            notyf.success(`Session ${sessionId} reconnected successfully`);
             // Refresh the sessions list
             await refreshSessions();
         } else {
-            toast.error(`Failed to reconnect: ${data.error}`);
+            notyf.error(`Failed to reconnect: ${data.error}`);
         }
     } catch (error) {
         console.error(`reconnectSession #892: Error: ${error}`);
-        toast.error('Failed to reconnect session');
+        notyf.error('Failed to reconnect session');
     }
 }
 
 async function getServerStatus() {
     // Declare variables at the top
     let response, data;
-    
-    console.log(`getServerStatus #876: Fetching server status`);
-    
-
         response = await fetch('/server-status');
         data = await response.json();
 
@@ -420,19 +465,17 @@ async function getServerStatus() {
 
 }
 
-// Wait for DOM content to be loaded before initializing
+// Keep only this one at the top level, and add version tracking
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize notyf if needed
-    if (typeof toast !== 'undefined') {
-        toast.options = {
-            closeButton: true,
-            progressBar: true,
-            timeOut: 3000
-        };
-    }
-    getServerStatus();
-    // Optionally set up periodic updates
-    //setInterval(getServerStatus, 30000); // Update every 30 seconds
+    const version = "00005"; // Increment this when making changes
+    console.log(`DOMContentLoaded: Initializing version ${version}`);
+    
+    // Initialize all required functionality
+    initializeWebSocket();
+    updateSessionSelect();
+    getBlockedPhones();
+    refreshSessions();
+    
 });
 
 function updateResourceBar(barId, used, total) {
@@ -449,7 +492,6 @@ function updateResourceBar(barId, used, total) {
     let totalGB = convertToGB(total);
     let percentage = (usedGB / totalGB) * 100;
     
-    console.log(`updateResourceBar #754: Updating ${barId} - Used: ${usedGB}GB, Total: ${totalGB}GB, Percentage: ${percentage}%`);
     
     let bar = document.getElementById(barId);
     let fill = bar.querySelector('.bar-fill');
@@ -483,24 +525,26 @@ async function getSessionChats(sessionId) {
         });
         let data = await response.json();
         
-        if (data.status === "success") {
+        if (data) {
+            console.log(`getSessionChats: Raw response data: ${JSON.stringify(data)}`);
             console.log(`getSessionChats: Retrieved ${data.count} chats\n`);
             return data.chats;
         }
     } catch (error) {
         console.error(`getSessionChats: Error fetching chats: ${error}\n`);
-        toast.error('Failed to fetch chats');
+        notyf.error('Failed to fetch chats');
     }
     return [];
 }
 
 async function getSessionContacts(sessionId) {
-    // Declare variables at the top
+    // Variables at the top
     let response, data;
     
-    console.log(`getSessionContacts #654: sessionId: ${sessionId}`);
+    console.log(`getSessionContacts #654: Attempting to fetch contacts for sessionId: ${sessionId}`);
     
     if (!sessionId) {
+        console.error(`getSessionContacts: No sessionId provided`);
         return { 
             status: "error", 
             message: "No session ID provided",
@@ -509,24 +553,18 @@ async function getSessionContacts(sessionId) {
     }
     
     try {
-        response = await fetch(`/session-contacts/${sessionId}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            }
-        });
+        console.log(`getSessionContacts: Fetching from /session-contacts/${sessionId}`);
+        response = await fetch(`/session-contacts/${sessionId}`);
         
-        // Handle non-OK responses explicitly
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         data = await response.json();
+        console.log(`getSessionContacts: Received response:`, data);
         
-        // Ensure we have a valid response structure
         if (!data || !Array.isArray(data.contacts)) {
-            console.error(`getSessionContacts #655: Invalid response format`);
+            console.error(`getSessionContacts: Invalid response format`, data);
             return {
                 status: "error",
                 message: "Invalid response format",
@@ -534,7 +572,6 @@ async function getSessionContacts(sessionId) {
             };
         }
         
-        console.log(`getSessionContacts #656: Successfully retrieved ${data.contacts.length} contacts`);
         return {
             status: "success",
             contacts: data.contacts,
@@ -542,7 +579,7 @@ async function getSessionContacts(sessionId) {
         };
         
     } catch (error) {
-        console.error(`getSessionContacts #657: Error fetching contacts: ${error}`);
+        console.error(`getSessionContacts: Error:`, error);
         return {
             status: "error",
             message: error.message,
@@ -580,7 +617,7 @@ async function loadChats(sessionId) {
     
     if (!chatsList || !placeholder) {
         console.error(`loadChats #332: Required elements not found. chatsList: ${!!chatsList}, placeholder: ${!!placeholder}`);
-        toast.error('UI elements not found. Please check the HTML structure.');
+        notyf.error('UI elements not found. Please check the HTML structure.');
         return;
     }
     
@@ -619,35 +656,41 @@ async function loadChats(sessionId) {
         }
     } catch (error) {
         console.error(`loadChats: Error: ${error}\n`);
-        toast.error('Failed to load chats');
+        notyf.error('Failed to load chats');
     }
 }
 
 async function loadContacts(sessionId) {
-    if (!sessionId) { //get first value from sessionId from select
-        const select = document.getElementById('detailsSessionSelect');
-        sessionId = select.options[0].value;
+    // Variables at the top
+    const select = document.getElementById('detailsSessionSelect');
+    const contactsList = document.getElementById('contactsList');
+    const placeholder = document.getElementById('contactsPlaceholder');
+    
+    // Get sessionId if not provided
+    if (!sessionId) {
+        sessionId = select.options[0]?.value;
     }
-    let contactsList = document.getElementById('contactsList');
-    let placeholder = document.getElementById('contactsPlaceholder');
     
-    console.log(`loadContacts: Loading contacts for session ${sessionId}\n`);
+    console.log(`loadContacts: Loading contacts for session ${sessionId}`);
     
+    // Validate elements exist
     if (!contactsList || !placeholder) {
-        console.error(`loadContacts: Required elements not found\n`);
+        console.error(`loadContacts: Required elements not found`);
         return;
     }
     
     try {
-        let contacts = await getSessionContacts(sessionId);
+        const response = await getSessionContacts(sessionId);
         contactsList.innerHTML = '';
         
-        if (contacts && contacts.length > 0) {
+        // Check if we have valid contacts
+        if (response?.status === 'success' && Array.isArray(response.contacts) && response.contacts.length > 0) {
             placeholder.style.display = 'none';
-            contacts.forEach(contact => {
+            
+            response.contacts.forEach(contact => {
                 // Safely handle undefined values
-                let contactName = contact.name || 'Unknown';
-                let contactNumber = contact.number || 'No number';
+                const contactName = contact.name || contact.number || 'Unknown';
+                const contactNumber = contact.number || contact.id?.split('@')[0] || 'No number';
                 
                 contactsList.innerHTML += `
                     <div class="contact-item">
@@ -659,18 +702,20 @@ async function loadContacts(sessionId) {
                                 ${contact.isBusiness ? 'Business' : 'Personal'}
                             </div>
                         </div>
-                        <button onclick="copyToClipboard('${contact.number}')" class="copy-btn">
+                        <button onclick="copyToClipboard('${contactNumber}')" class="copy-btn">
                             <i class="ph ph-copy"></i>
                         </button>
                     </div>
                 `;
             });
         } else {
+            console.log(`loadContacts: No contacts found for session ${sessionId}`);
             placeholder.style.display = 'block';
         }
     } catch (error) {
-        console.error(`loadContacts: Error: ${error}\n`);
-        toast.error('Failed to load contacts');
+        console.error(`loadContacts: Error loading contacts:`, error);
+        placeholder.style.display = 'block';
+        contactsList.innerHTML = `<div class="error-message">Error loading contacts: ${error.message}</div>`;
     }
 }
 
@@ -767,10 +812,10 @@ function copyToClipboard(text) {
     
     try {
         navigator.clipboard.writeText(text);
-        toast.success('Copied to clipboard');
+        notyf.success('Copied to clipboard');
     } catch (error) {
         console.error(`copyToClipboard: Error: ${error}\n`);
-        toast.error('Failed to copy to clipboard');
+        notyf.error('Failed to copy to clipboard');
     }
 }
 
@@ -843,7 +888,7 @@ async function getBlockedPhones() {
         }
     } catch (error) {
         console.error(`getBlockedPhones #766: Error fetching blocked phones: ${error}`);
-        toast.error('Failed to fetch blocked phones');
+        notyf.error('Failed to fetch blocked phones');
     }
 }
 
@@ -854,7 +899,7 @@ async function blockPhone() {
     console.log(`blockPhone #432: Attempting to block phone: ${phoneNumber}`);
     
     if (!phoneNumber) {
-        toast.error('Please enter a phone number');
+        notyf.error('Please enter a phone number');
         return;
     }
 
@@ -872,13 +917,13 @@ async function blockPhone() {
             throw new Error('Failed to block phone');
         }
 
-        toast.success(`Phone number ${phoneNumber} blocked successfully`);
+        notyf.success(`Phone number ${phoneNumber} blocked successfully`);
         document.getElementById('blockedPhoneNumber').value = '';
         
         await getBlockedPhones();
     } catch (error) {
         console.error(`blockPhone #433: Error blocking phone: ${error}`);
-        toast.error('Failed to block phone number');
+        notyf.error('Failed to block phone number');
     }
 }
 
@@ -900,72 +945,25 @@ async function unblockPhone(phoneNumber) {
             throw new Error('Failed to unblock phone');
         }
 
-        toast.success(`Phone number ${phoneNumber} unblocked successfully`);
+        notyf.success(`Phone number ${phoneNumber} unblocked successfully`);
         
         await getBlockedPhones();
     } catch (error) {
         console.error(`unblockPhone #545: Error unblocking phone: ${error}`);
-        toast.error('Failed to unblock phone number');
+        notyf.error('Failed to unblock phone number');
     }
 }
 
-// Load blocked phones when page loads
-document.addEventListener('DOMContentLoaded', () => {
-    console.log(`DOMContentLoaded VERSION 00004 `);
-    initializeWebSocket();
-    updateSessionSelect();
-    getBlockedPhones();
-    refreshSessions();
-});
-
-baileysApp.post('/start', async (req, res) => {
-    let { sessionId } = req.body;
-    console.log(`/start #543: Starting session ${sessionId}`);
-    
-    try {
-        // Create a new socket connection
-        startBaileysConnection(sessionId).then(sock => {
-            sock.ev.on('connection.update', async ({ qr }) => {
-                if (qr) {
-                    try {
-                        let qrImage = await QRCode.toDataURL(qr);
-                        
-                        // Store QR code in session
-                        if (sessions.has(sessionId)) {
-                            sessions.get(sessionId).qrCode = qrImage;
-                        }
-                        
-                        // Broadcast QR code to WebSocket clients
-                        if (wss) {
-                            wss.clients.forEach((client) => {
-                                if (client.readyState === WebSocket.OPEN) {
-                                    client.send(JSON.stringify({
-                                        type: 'qr',
-                                        sessionId: sessionId,
-                                        qr: qrImage
-                                    }));
-                                }
-                            });
-                        }
-                        
-                    } catch (err) {
-                        console.error(`/start #545: Error generating QR: ${err}`);
-                    }
-                }
-            });
-        });
-
-        res.status(200).send({ 
-            status: "success",
-            message: "Session initiated",
-            sessionId: sessionId
-        });
-
-    } catch (error) {
-        console.error(`/start #98564: Error creating session: ${error}`);
-        res.status(500).send({ error: "Failed to create connection" });
+// Add function to track initialization
+function isInitialized() {
+    // Use a global flag to prevent multiple initializations
+    if (window._isInitialized) {
+        console.log('Application already initialized, skipping...');
+        return true;
     }
-});
+    window._isInitialized = true;
+    return false;
+}
 
 async function sendVideo() {
     // Declare variables at the top
@@ -980,7 +978,7 @@ async function sendVideo() {
 
     // Validate required fields
     if (!sessionId || !jid || !videoUrl) {
-        toast.error('Please fill in all required fields');
+        notyf.error('Please fill in all required fields');
         return;
     }
 
@@ -1004,10 +1002,10 @@ async function sendVideo() {
             throw new Error('Failed to send video');
         }
 
-        toast.success('Video sent successfully!');
+        notyf.success('Video sent successfully!');
     } catch (error) {
         console.error(`sendVideo #777: Error sending video: ${error}`);
-        toast.error('Failed to send video');
+        notyf.error('Failed to send video');
     }
 }
 
@@ -1022,7 +1020,7 @@ async function sendVoiceNote() {
 
     // Validate required fields
     if (!sessionId || !jid || !audioUrl) {
-        toast.error('Please fill in all required fields');
+        notyf.error('Please fill in all required fields');
         return;
     }
 
@@ -1044,10 +1042,10 @@ async function sendVoiceNote() {
             throw new Error('Failed to send voice note');
         }
 
-        toast.success('Voice note sent successfully!');
+        notyf.success('Voice note sent successfully!');
     } catch (error) {
         console.error(` BAILE 🧜‍♀️🧜‍♀️ sendVoiceNote #433: Error sending voice note: ${error}`);
-        toast.error('Failed to send voice note');
+        notyf.error('Failed to send voice note');
     }
 }
 
@@ -1055,3 +1053,26 @@ async function sendVoiceNote() {
 function getGlobalSessionId() {
     return document.getElementById('globalSessionId').value;
 }
+
+// New function to check the server status and trigger a Toasty notification.
+function checkServerStatusToast() {
+    // Place variables at the top of the function.
+    const functionName = "checkServerStatusToast";
+    
+    // Log the function call (no arguments to log).
+    console.log(`${functionName}: called with no arguments`);
+    
+    // Log before calling getServerStatus (using a template literal).
+    console.log(`${functionName}: calling getServerStatus() with no arguments`);
+    getServerStatus();
+    
+    // Check if notyf is initialized before using it
+    if (notyf) {
+        notyf.success(` Server status checked.`);
+    } else {
+        console.error(`${functionName}: Notification system not initialized`);
+    }
+}
+
+// Make sure checkServerStatusToast is available globally
+window.checkServerStatusToast = checkServerStatusToast;
