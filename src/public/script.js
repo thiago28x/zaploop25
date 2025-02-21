@@ -476,6 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
     getBlockedPhones();
     refreshSessions();
     
+    initializeNavigation();
 });
 
 function updateResourceBar(barId, used, total) {
@@ -538,10 +539,7 @@ async function getSessionChats(sessionId) {
 }
 
 async function getSessionContacts(sessionId) {
-    // Variables at the top
-    let response, data;
-    
-    console.log(`getSessionContacts #654: Attempting to fetch contacts for sessionId: ${sessionId}`);
+    console.log(`getSessionContacts #654: Fetching contacts for sessionId: ${sessionId}`);
     
     if (!sessionId) {
         console.error(`getSessionContacts: No sessionId provided`);
@@ -553,29 +551,18 @@ async function getSessionContacts(sessionId) {
     }
     
     try {
-        console.log(`getSessionContacts: Fetching from /session-contacts/${sessionId}`);
-        response = await fetch(`/session-contacts/${sessionId}`);
+        const response = await fetch(`/contacts?session=${sessionId}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        data = await response.json();
-        console.log(`getSessionContacts: Received response:`, data);
-        
-        if (!data || !Array.isArray(data.contacts)) {
-            console.error(`getSessionContacts: Invalid response format`, data);
-            return {
-                status: "error",
-                message: "Invalid response format",
-                contacts: []
-            };
-        }
+        const data = await response.json();
         
         return {
             status: "success",
             contacts: data.contacts,
-            count: data.contacts.length
+            count: data.count
         };
         
     } catch (error) {
@@ -1076,3 +1063,64 @@ function checkServerStatusToast() {
 
 // Make sure checkServerStatusToast is available globally
 window.checkServerStatusToast = checkServerStatusToast;
+
+// Add this new function
+async function restoreAllSessions() {
+    const functionName = 'restoreAllSessions';
+    console.log(`${functionName}: Initiating restore of all sessions`);
+    
+    try {
+        const response = await fetch('/restart-all-sessions', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            notyf.success(`Restored ${data.summary.successful} sessions successfully`);
+            if (data.summary.failed > 0) {
+                notyf.warning(`Failed to restore ${data.summary.failed} sessions`);
+            }
+            await refreshSessions();
+        } else {
+            throw new Error(data.message || 'Failed to restore sessions');
+        }
+    } catch (error) {
+        console.error(`${functionName}: Error:`, error);
+        notyf.error('Failed to restore sessions: ' + error.message);
+    }
+}
+
+// Add at the end of the file
+document.getElementById('openSidemenu')?.addEventListener('click', () => {
+    document.getElementById('sidemenu').classList.add('open');
+});
+
+document.getElementById('closeSidemenu')?.addEventListener('click', () => {
+    document.getElementById('sidemenu').classList.remove('open');
+});
+
+function initializeNavigation() {
+    const menuItems = document.querySelectorAll('.menu-item');
+    
+    // Show first section by default
+    document.querySelector('.section').classList.add('active');
+    menuItems[0]?.classList.add('active');
+    
+    menuItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // Remove active class from all sections and menu items
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            menuItems.forEach(menuItem => {
+                menuItem.classList.remove('active');
+            });
+            
+            // Add active class to clicked item and corresponding section
+            item.classList.add('active');
+            const sectionId = item.getAttribute('data-section');
+            document.querySelector(`.section[id="${sectionId}"]`)?.classList.add('active');
+        });
+    });
+}

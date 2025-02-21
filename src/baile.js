@@ -1,15 +1,23 @@
 require('dotenv').config();
 
 const express = require('express');
-const { startBaileysConnection, getSession, restoreSessions, sessions, connectionStates, getStoreData } = require('./createBaileysConnection');
+const { startBaileysConnection, getSession, sessions, connectionStates, getStoreData, restartAllSessions } = require('./createBaileysConnection');
+const { restoreSessions } = require('./restoreSessions');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const WebSocket = require('ws');
 const QRCode = require('qrcode');
+const gracefulShutdown = require('./shutdown');
 
 // Import the new send routes
 const sendRoutes = require('./send');
+
+const handleUpdateServer = require('./updateServer');
+
+const handleReaction = require('./reactions');
+
+const contactsRoutes = require('./routes/contacts');
 
 let isStarting = false;
 let lastStartAttempt = 0;
@@ -221,7 +229,7 @@ baileysApp.post("/send-message", validatePhoneNumber, validateMessageBody, async
   if (!sessionId || !jid || !message) {
     return res.status(400).send({ error: "Missing required fields" });
   }
-  if ( message.length < 3 ) {
+  if ( message.length < 2 ) {
     return res.status(400).send({ error: "Message too short" });
   }
   
@@ -247,11 +255,21 @@ baileysApp.post("/send-message", validatePhoneNumber, validateMessageBody, async
     await client.sendPresenceUpdate('composing', jid);
 
     //RANDOM DELAY
-    const randomDelay = Math.floor(Math.random() * 3000) + 1000; // Random delay.
+    const randomDelay = Math.floor(Math.random() * 1030) + 500; // Random delay.
     await new Promise(resolve => setTimeout(resolve, randomDelay));
 
-    await client.sendMessage(jid, { text: message });
-    res.send({ status: "Message sent" });
+    const sentMessage = await client.sendMessage(jid, { text: message });
+    res.status(200).send({
+        status: "200 - Message sent successfully",
+        messageId: sentMessage.key.id,
+            sessionId,
+            jid,
+            type: 'text',
+            timestamp: new Date().toISOString(),
+                fromMe: sentMessage.key.fromMe,
+                remoteJid: sentMessage.key.remoteJid
+        
+    });
   } catch (error) {
     console.error(`/send-message: Error sending message: ${error}\n`);
     res.status(500).send({ 
@@ -671,54 +689,9 @@ function getServerStatus(req, res) {
 // Set up the route
 baileysApp.get('/server-status', getServerStatus);
 
-// Add at the bottom of the file
-process.on('SIGTERM', gracefulShutdown);
+// Keep the process running and handle shutdown gracefully
 process.on('SIGINT', gracefulShutdown);
-
-async function gracefulShutdown() {
-    let isShuttingDown = false;  // Prevent multiple shutdown attempts
-    let shutdownTimeout = 10000; // 10 seconds timeout
-    
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n  BAILEYS SERVER:  \n\n  BAILEYS SERVER:  \n gracefulShutdown: Received shutdown signal\n`);
-    
-    if (isShuttingDown) {
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Shutdown already in progress\n`);
-        return;
-    }
-    
-    isShuttingDown = true;
-    
-    try {
-        // Set a timeout for forced shutdown
-        let forceShutdown = setTimeout(() => {
-            console.error(`gracefulShutdown: Forced shutdown after ${shutdownTimeout}ms timeout\n`);
-            process.exit(1);
-        }, shutdownTimeout);
-        
-        // Close the Express server first
-        if (baileysApp.server) {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ \n  BAILEYS SERVER:  \ngracefulShutdown: Closing Express server\n`);
-            await new Promise(resolve => baileysApp.server.close(resolve));
-        }
-        
-        // Close all WhatsApp connections gracefully
-        for (let [sessionId, client] of sessions) {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Closing session ${sessionId}\n`);
-            await client.end();
-        }
-        
-        // Clear all maps
-        sessions.clear();
-        connectionStates.clear();
-        
-        clearTimeout(forceShutdown);
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \ngracefulShutdown: Shutdown completed successfully\n`);
-        process.exit(0);
-    } catch (error) {
-        console.error(`gracefulShutdown: Error during shutdown: ${error}\n`);
-        process.exit(1);
-    }
-}
+process.on('SIGTERM', gracefulShutdown);
 
 // Add new endpoints for specific data retrieval
 baileysApp.get("/session-chats/:sessionId", async (req, res) => {
@@ -743,169 +716,6 @@ baileysApp.get("/session-chats/:sessionId", async (req, res) => {
     } catch (error) {
         console.error(`/session-chats: Error: ${error}\n`);
         res.status(500).send({ error: "Failed to fetch chats" });
-    }
-});
-
-baileysApp.get("/session-contacts/:sessionId", async (req, res) => {
-    // Variables at top
-    let { sessionId } = req.params;
-    
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ getSessionContacts #543: Fetching contacts for session ${sessionId}`);
-    
-    try {
-        let session = sessions.get(sessionId);
-        if (!session?.sock) {
-            throw new Error("Session not found or not connected");
-        }
-
-        try {
-            // Get contacts from the store
-            const contacts = session.sock.store.contacts;
-            
-            // Transform contacts
-            const transformedContacts = Object.entries(contacts || {})
-                .filter(([id]) => id.endsWith('@s.whatsapp.net'))
-                .map(([id, contact]) => ({
-                    id: id,
-                    name: contact.name || contact.notify || (id ? id.split('@')[0] : 'Unknown'),
-                    number: id ? id.split('@')[0] : '',
-                    notify: contact.notify || '',
-                    verifiedName: contact.verifiedName || '',
-                    pushName: contact.pushName || '',
-                    status: contact.status || '',
-                    imgUrl: contact.imgUrl || '',
-                    isBusiness: Boolean(contact.isBusiness),
-                    isGroup: false,
-                    isUser: true,
-                    lastSeen: contact.lastSeen || null
-                }));
-
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ getSessionContacts #544: Found ${transformedContacts.length} contacts`);
-            
-            res.send({
-                status: "success",
-                sessionId,
-                contacts: transformedContacts,
-                count: transformedContacts.length,
-                timestamp: new Date().toISOString()
-            });
-
-        } catch (error) {
-            console.error(`getSessionContacts #545: Store error:`, error);
-            throw error;
-        }
-    } catch (error) {
-        console.error(`getSessionContacts #546: Error:`, error);
-        res.status(500).send({ 
-            error: "Failed to fetch contacts",
-            details: error.message,
-            sessionId
-        });
-    }
-});
-
-// Add endpoints using direct socket methods
-baileysApp.get("/session-chats-direct/:sessionId", async (req, res) => {
-    let sessionId = req.params.sessionId;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER: /session-chats-direct/${sessionId}: Fetching chats directly\n`);
-    
-    if (!sessionId) {
-        return res.status(400).json({ 
-            error: "SessionId is required"
-        });
-    }
-
-    try {
-        let session = sessions.get(sessionId);
-        if (!session?.sock) {
-            return res.status(404).json({ 
-                error: "Session not found",
-                sessionId 
-            });
-        }
-
-        // Using the correct method to fetch chats
-        let chats = await session.sock.groupFetchAllParticipating();
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ /session-chats-direct: Retrieved ${Object.keys(chats).length} chats for ${sessionId}\n`);
-
-        // Transform the chats object into the desired format
-        let formattedChats = Object.entries(chats).map(([id, chat]) => ({
-            id: id,
-            name: chat.subject || chat.name || id,
-            participants: chat.participants?.length || 0,
-            isGroup: id.endsWith('@g.us')
-        }));
-
-        return res.status(200).json({
-            status: "success",
-            sessionId,
-            chats: formattedChats,
-            count: formattedChats.length
-        });
-    } catch (error) {
-        console.error(`/session-chats-direct: Error: ${error}\n`);
-        res.status(500).json({ 
-            error: "Failed to fetch chats directly",
-            details: error.message
-        });
-    }
-});
-
-baileysApp.get("/session-contacts-direct/:sessionId", async (req, res) => {
-    let { sessionId } = req.params;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER: /session-contacts-direct/${sessionId}: Fetching contacts directly\n`);
-    
-    try {
-        let session = sessions.get(sessionId);
-        if (!session?.sock) {
-            throw new Error("Session not found");
-        }
-
-        let contacts = await session.sock.getContacts();
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ /session-contacts-direct: Retrieved ${Object.keys(contacts).length} contacts for ${sessionId}\n`);
-
-        res.send({
-            status: "success",
-            sessionId,
-            contacts: Object.entries(contacts).map(([id, contact]) => ({
-                id,
-                name: contact.name || contact.notify || id.split('@')[0],
-                number: id.split('@')[0],
-                isGroup: id.endsWith('@g.us'),
-                isBusiness: contact.isBusiness || false
-            })),
-            count: Object.keys(contacts).length
-        });
-    } catch (error) {
-        console.error(`/session-contacts-direct: Error: ${error}\n`);
-        res.status(500).send({ error: "Failed to fetch contacts directly" });
-    }
-});
-
-// Add a new endpoint to get QR code via HTTP
-baileysApp.get("/qr/:sessionId", (req, res) => {
-    let { sessionId } = req.params;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ /qr #543: Fetching QR for session ${sessionId}`);
-    
-    try {
-        let session = sessions.get(sessionId);
-        if (!session || !session.qrCode) {
-            return res.status(404).send({ error: "QR code not found" });
-        }
-
-        // Send QR code as image
-        let qrImage = session.qrCode.split(',')[1];
-        let qrBuffer = Buffer.from(qrImage, 'base64');
-        
-        res.writeHead(200, {
-            'Content-Type': 'image/png',
-            'Content-Length': qrBuffer.length
-        });
-        res.end(qrBuffer);
-        
-    } catch (error) {
-        console.error(`/qr #544: Error serving QR: ${error}`);
-        res.status(500).send({ error: "Failed to serve QR code" });
     }
 });
 
@@ -991,331 +801,114 @@ function initializeWebSocket() {
 // Ensure WebSocket server is initialized
 initializeWebSocket();
 
-let { exec } = require('child_process');
-
-baileysApp.post('/update-server', (req, res) => {
-    // Variables at the top
-    const scriptPath = path.join(process.cwd(), 'updateserverfiles.sh');
-    
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #543: Starting server update process`);
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #544: Current directory: ${process.cwd()}`);
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #545: Script path: ${scriptPath}`);
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #546: Script exists: ${fs.existsSync(scriptPath)}`);
-    
-    // Check if script exists
-    if (!fs.existsSync(scriptPath)) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #547: Update script not found at ${scriptPath}`);
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #548: Listing directory contents:`);
-        console.error(fs.readdirSync(path.dirname(scriptPath)));
-        
-        return res.status(500).json({
-            success: false,
-            message: 'Update script not found',
-            type: 'error',
-            path: scriptPath,
-            cwd: process.cwd(),
-            dirContents: fs.readdirSync(path.dirname(scriptPath))
-        });
-    }
-
-    // Make script executable
-    try {
-        fs.chmodSync(scriptPath, '755');
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #549: Made script executable`);
-    } catch (error) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #550: Failed to make script executable: ${error}`);
-    }
-
-    // Execute update script with timeout and working directory set
-    const updateProcess = exec(`bash ${scriptPath}`, {
-        timeout: 300000, // 5 minute timeout
-        cwd: process.cwd(), // Set working directory explicitly
-        shell: '/bin/bash' // Explicitly use bash
-    }, (error, stdout, stderr) => {
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #551: Stdout: ${stdout}`);
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #552: Stderr: ${stderr}`);
-        
-        if (error) {
-            console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #553: Script execution error: ${error}`);
-            return res.status(500).json({
-                success: false,
-                message: 'Update script failed',
-                error: error.message,
-                stderr: stderr,
-                type: 'error'
-            });
-        }
-
-        try {
-            // Parse update results
-            const resultMatch = stdout.match(/UPDATE_RESULT:({.*})/);
-            if (!resultMatch) {
-                throw new Error('Could not parse update results');
-            }
-
-            const updateResult = JSON.parse(resultMatch[1]);
-            
-            // Format response message
-            let message = '';
-            let type = 'info';
-
-            if (updateResult.waifu.updated || updateResult.baileys.updated) {
-                message = 'Updates installed:\n';
-                type = 'success';
-                if (updateResult.waifu.updated) {
-                    message += `- Waifu: ${updateResult.waifu.message}\n`;
-                }
-                if (updateResult.baileys.updated) {
-                    message += `- Baileys: ${updateResult.baileys.message}`;
-                }
-            } else {
-                message = 'All repositories are up to date';
-                type = 'info';
-            }
-
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ updateServer #548: Update completed successfully`);
-            
-            res.json({
-                success: true,
-                message,
-                type,
-                details: updateResult
-            });
-
-        } catch (parseError) {
-            console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #549: Failed to parse update results: ${parseError}`);
-            res.status(500).json({
-                success: false,
-                message: 'Update completed but results parsing failed',
-                error: parseError.message,
-                type: 'warning',
-                output: stdout
-            });
-        }
-    });
-
-    // Handle process errors
-    updateProcess.on('error', (error) => {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ updateServer #550: Process error: ${error}`);
-    });
-});
+// Replace the entire /update-server route with:
+baileysApp.post('/update-server', handleUpdateServer);
 
 baileysApp.post("/reconnect/:sessionId", async (req, res) => {
     const { sessionId } = req.params;
-    
-    // Add input validation
-    if (!sessionId) {
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #764: Missing sessionId parameter`);
-        return res.status(400).send({
-            error: "Missing parameter",
-            details: "sessionId is required"
-        });
-    }
-    
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #765: Attempting to reconnect session: ${sessionId}`);
+    let timeout;
     
     try {
-        // Check if session directory exists
+        console.log(`[reconnect] Attempting to reconnect session: ${sessionId}`);
+        
+        if (!sessionId) {
+            return res.status(400).send({
+                status: "error",
+                message: "Missing sessionId parameter"
+            });
+        }
+
         const sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
         if (!fs.existsSync(sessionDir)) {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #766: Session directory not found: ${sessionDir}`);
             return res.status(404).send({
-                error: "Session not found",
-                details: "No session data found for reconnection"
+                status: "error",
+                message: "Session directory not found"
             });
         }
 
-        // If there's an existing connection, close it first
-        let existingSession = getSession(sessionId);
-        if (existingSession) {
+        // Set timeout for reconnection attempt
+        timeout = setTimeout(() => {
+            return res.status(408).send({
+                status: "error",
+                message: "Reconnection timeout"
+            });
+        }, 30000);
+
+        // Close existing session if any
+        const existingSession = sessions.get(sessionId);
+        if (existingSession?.sock) {
             try {
-                await existingSession.end();
+                console.log(`[reconnect] Closing existing session: ${sessionId}`);
+                await existingSession.sock.logout();
+                await existingSession.sock.end();
                 sessions.delete(sessionId);
-                console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #767: Closed existing session: ${sessionId}`);
             } catch (err) {
-                console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #768: Error closing existing session: ${err}`);
+                console.warn(`[reconnect] Error closing session: ${err.message}`);
             }
         }
 
-        // Attempt to create new connection using existing auth data
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #769: Starting new connection for: ${sessionId}`);
+        // Start new connection
+        console.log(`[reconnect] Starting new connection for: ${sessionId}`);
         const sock = await startBaileysConnection(sessionId);
-
-        // Wait for connection update
-        const connectionResult = await new Promise((resolve) => {
-            const timeout = setTimeout(() => {
-                resolve({ success: false, reason: 'timeout' });
-            }, 15000); // 15 second timeout
-
-            sock.ev.on('connection.update', ({ connection }) => {
-                if (connection === 'open') {
-                    clearTimeout(timeout);
-                    resolve({ success: true });
-                } else if (connection === 'close') {
-                    clearTimeout(timeout);
-                    resolve({ success: false, reason: 'closed' });
-                }
-            });
-        });
-
-        if (connectionResult.success) {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #770: Successfully reconnected session: ${sessionId}`);
-            res.send({
-                status: "success",
-                message: "Session reconnected successfully",
-                sessionId
-            });
-        } else {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ reconnectSession #771: Failed to reconnect session: ${connectionResult.reason}`);
-            res.status(500).send({
-                error: "Reconnection failed",
-                reason: connectionResult.reason,
-                sessionId
-            });
-        }
-
-    } catch (error) {
-        console.error(`reconnectSession #772: Error during reconnection: ${error}`);
-        res.status(500).send({
-            error: "Failed to reconnect",
-            details: error.message,
-            sessionId
-        });
-    } finally {
-        // Add cleanup if needed
-        clearTimeout(timeout); // Make sure to declare timeout in wider scope
-    }
-});
-
-// Add this route after other message-related routes
-baileysApp.post("/react-message", async (req, res) => {
-    // Variables at the top
-    let { sessionId, messageId, emoji, jid } = req.body;
-    
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ reactMessage #543: Reacting to message ${messageId} with emoji ${emoji}`);
-
-    // Input validation
-    if (!sessionId || !messageId || !emoji || !jid) {
-        return res.status(400).send({ 
-            error: "Missing required fields",
-            details: "sessionId, messageId, emoji, and jid are required" 
-        });
-    }
-
-    // Validate emoji format (must be a single emoji)
-    const emojiRegex = /^\p{Emoji}$/u;
-    if (!emojiRegex.test(emoji)) {
-        return res.status(400).send({
-            error: "Invalid emoji",
-            details: "Must provide a single valid emoji character"
-        });
-    }
-
-    try {
-        let client = getSession(sessionId);
-        if (!client) {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ reactMessage #544: No session found for ${sessionId}`);
-            return res.status(404).send({ error: "No session found" });
-        }
-
-        // Format JID if needed
-        if (!jid.includes('@')) {
-            jid = `${jid}@s.whatsapp.net`;
-        }
         
-        // Validate JID format
-        if (!jid.match(/^[0-9]+@(s\.whatsapp\.net|g\.us)$/)) {
-            throw new Error("Invalid JID format");
+        if (!sock) {
+            throw new Error("Failed to create new connection");
         }
 
-        // Send reaction
-        await client.sendMessage(jid, {
-            react: {
-                text: emoji,
-                key: messageId
-            }
-        });
-
-        res.send({ 
+        clearTimeout(timeout);
+        res.status(200).send({
             status: "success",
-            message: "Reaction sent successfully",
-            details: {
-                messageId,
-                emoji,
-                jid
-            }
+            message: "Session reconnected successfully"
         });
 
     } catch (error) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ reactMessage #545: Error sending reaction: ${error}`);
-        res.status(500).send({ 
-            error: "Failed to send reaction",
-            details: error.message 
+        clearTimeout(timeout);
+        console.error(`[reconnect] Error:`, error);
+        res.status(500).send({
+            status: "error",
+            message: error.message
         });
     }
 });
 
-// Add this new route after other contact-related routes
-baileysApp.get("/contacts", async (req, res) => {
-    // Variables at top
-    const sessionId = 'default';
-    
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ getContacts #543: Fetching contacts from default session`);
+// Replace the entire react-message route with:
+baileysApp.post("/react-message", handleReaction);
+
+// Add this with other route declarations
+baileysApp.use('/contacts', contactsRoutes);
+
+// Add this new route after your other session management routes
+baileysApp.post("/restart-all-sessions", async (req, res) => {
+    console.log(`[/restart-all-sessions] Initiating full sessions restart`);
     
     try {
-        let session = sessions.get(sessionId);
-        if (!session?.sock) {
-            throw new Error("Default session not found or not connected");
-        }
+        const results = await restoreSessions();
+        
+        const response = {
+            status: "success",
+            message: "Sessions restart completed",
+            summary: {
+                total: results.success.length + results.failed.length,
+                successful: results.success.length,
+                failed: results.failed.length
+            },
+            details: {
+                success: results.success,
+                failed: results.failed
+            },
+            timestamp: new Date().toISOString()
+        };
 
-        try {
-            // Get contacts from the session's store
-            const store = session.store;
-            if (!store) {
-                throw new Error("Store not found for default session");
-            }
+        console.log(`[/restart-all-sessions] Completed with ${results.success.length} successful and ${results.failed.length} failed`);
+        res.status(200).send(response);
 
-            // Get contacts from store
-            const contacts = store.contacts;
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ getContacts #544: Raw contacts from store:`, contacts);
-            
-            // Transform contacts
-            const transformedContacts = Object.entries(contacts || {})
-                .filter(([id]) => id.endsWith('@s.whatsapp.net'))
-                .map(([id, contact]) => ({
-                    id: id,
-                    name: contact.name || contact.notify || (id ? id.split('@')[0] : 'Unknown'),
-                    number: id ? id.split('@')[0] : '',
-                    notify: contact.notify || '',
-                    verifiedName: contact.verifiedName || '',
-                    pushName: contact.pushName || '',
-                    status: contact.status || '',
-                    imgUrl: contact.imgUrl || '',
-                    isBusiness: Boolean(contact.isBusiness),
-                    isGroup: false,
-                    isUser: true,
-                    lastSeen: contact.lastSeen || null
-                }))
-                .sort((a, b) => (a.name || '').localeCompare(b.name || '')); // Sort by name
-
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ getContacts #544: Found ${transformedContacts.length} contacts in default session`);
-            
-            res.send({
-                status: "success",
-                contacts: transformedContacts,
-                count: transformedContacts.length,
-                timestamp: new Date().toISOString()
-            });
-
-        } catch (error) {
-            console.error(`getContacts #545: Store error:`, error);
-            throw error;
-        }
     } catch (error) {
-        console.error(`getContacts #546: Error:`, error);
-        res.status(500).send({ 
-            error: "Failed to fetch contacts from default session",
-            details: error.message
+        console.error(`[/restart-all-sessions] Error:`, error);
+        res.status(500).send({
+            status: "error",
+            message: "Failed to restart sessions",
+            error: error.message,
+            timestamp: new Date().toISOString()
         });
     }
 });

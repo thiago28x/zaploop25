@@ -12,22 +12,86 @@
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/regular/style.css">
 </head>
 <body>
-<!-- add header, full width -->
-<header class="header" style="width: 100%;">
-    <h1>Zaploop Dashboard</h1>
-    <div class="header-controls">
+    <!-- Add sidemenu before header -->
+    <div id="sidemenu" class="sidemenu">
+        <h5>Menu</h3>
+        <div class="sidemenu-header">
+            <div class="" >
+                <i class="ph ph-user"></i>
         <input type="text" id="globalSessionId" placeholder="Enter Session ID" value="default">
-        <button id="updateServerBtn" onclick="updateServer()" class="update-btn">
-            <i class="ph ph-arrow-circle-up"></i> Update Server
-        </button>
+
+            </div>
+
+            <i class="ph ph-x" id="closeSidemenu">close</i>
+        </div>
+      
+        <div class="sidemenu-items">
+          
+
+
+            <div class="menu-item" data-section="createSession">
+                <i class="ph ph-plus-circle"></i>
+                <span>Create Session QR Code</span>
+            </div>
+            <div class="menu-item" data-section="onlineSessions">
+                <i class="ph ph-broadcast"></i>
+                <span>Online Sessions</span>
+            </div>
+            <div class="menu-item" data-section="sessionDetails">
+                <i class="ph ph-chats"></i>
+                <span>Chat</span>
+            </div>
+            <div class="menu-item" data-section="sendMessage">
+                <i class="ph ph-chat-text"></i>
+                <span>Send Message</span>
+            </div>
+            <div class="menu-item" data-section="sendImage">
+                <i class="ph ph-image"></i>
+                <span>Send Image</span>
+            </div>
+            <div class="menu-item" data-section="sendVideo">
+                <i class="ph ph-video"></i>
+                <span>Send Video</span>
+            </div>
+            <div class="menu-item" data-section="sendVoiceNote">
+                <i class="ph ph-microphone"></i>
+                <span>Send Voice Note</span>
+            </div>
+            <div class="menu-item" data-section="blockedPhones">
+                <i class="ph ph-phone-slash"></i>
+                <span>Blocked Phones</span>
+            </div>
+            <div class="menu-item" data-section="serverStatus">
+                <i class="ph ph-chart-line"></i>
+                <span>Server Status</span>
+            </div>
+            <div class="menu-item" data-section="restoreSessions">
+                <i class="ph ph-arrows-clockwise"></i>
+                <span>Restore Sessions</span>
+            </div>
+            <div class="menu-item" style="height: 100%;">
+            </div>
+            <button id="updateServerBtn" onclick="updateServer()" class="update-btn">
+                <i class="ph ph-arrow-circle-up"></i> Update Server
+            </button>
+        </div>
     </div>
-</header>
-<button onclick="new Notyf().success('This is a success notification!');">Test Alert</button>
+
+    <!-- Modify existing header to add menu icon -->
+    <header class="header" style="width: 100%;">
+        <div class="header-left">
+            <h1>Zaploop Dashboard</h1>
+        </div>
+        <div class="header-controls">
+    
+            <!-- <button onclick="new Notyf().success('This is a success notification!');">Test Alert</button> -->
+        </div>
+    </header>
 
 
     <div class="container" style="margin-top: 90px;">
         
-        <div class="section">
+        <div class="section" id="createSession">
             <h2><i class="ph ph-plus-circle"></i> Create New Session</h2>
             <div class="form-group">
                 <input type="text" id="sessionId" value="default" placeholder="Enter Session ID">
@@ -44,7 +108,7 @@
             </div>
         </div>
 
-        <div class="section">
+        <div class="section" id="onlineSessions">
             <h2><i class="ph ph-broadcast"></i> Online Sessions</h2>
             <div id="sessionsList">
                 <!-- Sessions will be populated here -->
@@ -58,7 +122,7 @@
         </div>
 
         <!-- Add this after your existing sessions section but before the closing body tag -->
-<div class="section">
+<div class="section" id="sessionDetails">
     <h2><i class="ph ph-chats"></i> Session Details</h2>
     <div class="session-details">
         <!-- Session selector -->
@@ -113,7 +177,7 @@
 
 
 
-        <div class="section">
+        <div class="section" id="sendMessage">
             <h2><i class="ph ph-chat-text"></i> Send Message</h2>
             <div class="form-group">
                 <input type="text" id="jid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
@@ -122,7 +186,7 @@
             </div>
         </div>
 
-        <div class="section">
+        <div class="section" id="sendImage">
             <h2><i class="ph ph-image"></i> Send Image</h2>
             <div class="form-group">
                 <input type="text" id="imageJid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
@@ -140,7 +204,7 @@
         </div>
 
         <!-- Add this after the "Send Image" section -->
-        <div class="section">
+        <div class="section" id="sendVideo">
             <h2><i class="ph ph-video"></i> Send Video</h2>
             <div class="form-group">
                 <input type="text" id="videoJid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
@@ -165,7 +229,7 @@
         </div>
 
         <!-- Add this after the "Send Video" section -->
-        <div class="section">
+        <div class="section" id="sendVoiceNote">
             <h2><i class="ph ph-microphone"></i> Send Voice Note</h2>
             <div class="form-group">
                 <input type="text" id="audioJid" placeholder="Enter JID (phone@s.whatsapp.net)" value="554891854014@s.whatsapp.net">
@@ -269,6 +333,23 @@ app.post('/blockuser', (req, res) => {
             <i class="ph ph-server"></i>Status
         </span>
     </div>
+
+</div>
+
+</div>
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+
+    <script src="script.js"></script> <!-- PUT CODE HERE: script.js is the main script that handles the websocket connection and the UI -->
+ 
+    <div class="section" id="restoreSessions">
+        <h2><i class="ph ph-arrows-clockwise"></i> Restore Sessions</h2>
+        <button onclick="restoreAllSessions()" class="restore-btn">
+            <i class="ph ph-arrows-counter-clockwise"></i> Restore All Sessions
+        </button>
+    </div>
+</div>
 
 </div>
 
