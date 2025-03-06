@@ -69,10 +69,7 @@
                 <i class="ph ph-chart-line"></i>
                 <span>Server Status</span>
             </div>
-            <div class="menu-item" data-section="restoreSessions">
-                <i class="ph ph-arrows-clockwise"></i>
-                <span>Restore Sessions</span>
-            </div>
+      
             <div class="menu-item" style="height: 100%;">
             </div>
             <button id="updateServerBtn" onclick="updateServer()" class="update-btn">
@@ -120,9 +117,18 @@
             <div id="sessionListPlaceholder">
                 <p>No active sessions</p>
             </div>
+            <br>
+            <br>
+
             <span hoverable id="refresh-sessions" class="" onclick="refreshSessions()" style="cursor: pointer;">
                 <i class="ph ph-arrows-clockwise"></i> Get Sessions
             </span>
+            <br>
+            <br>
+
+            <button onclick="restoreAllSessions()" class="restore-btn">
+                <i class="ph ph-arrows-counter-clockwise"></i> Restore All Sessions
+            </button>
         </div>
 
         <div class="section" id="pricing">
@@ -235,10 +241,8 @@
                         <p>No chats available</p>
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Contacts Tab -->
+
+                 <!-- Contacts Tab -->
         <div id="contactsTab" class="tab-content">
             <div class="list-container">
                 <div id="contactsList" class="items-list">
@@ -249,6 +253,10 @@
                 </div>
             </div>
         </div>
+            </div>
+        </div>
+        
+       
 
 
 
@@ -410,23 +418,6 @@ app.post('/blockuser', (req, res) => {
         </span>
     </div>
 
-</div>
-
-</div>
-
-</div>
-
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
-
-    <script src="script.js"></script> <!-- PUT CODE HERE: script.js is the main script that handles the websocket connection and the UI -->
- 
-    <div class="section" id="restoreSessions">
-        <h2><i class="ph ph-arrows-clockwise"></i> Restore Sessions</h2>
-        <button onclick="restoreAllSessions()" class="restore-btn">
-            <i class="ph ph-arrows-counter-clockwise"></i> Restore All Sessions
-        </button>
-    </div>
 </div>
 
 </div>

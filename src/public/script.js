@@ -93,9 +93,10 @@ async function refreshSessions() {
                         ${statusIcon}
                         <span>${sessionId}</span>
                         <span class="status-text">${isConnected ? 'Connected' : 'Disconnected'}</span>
-                        <button onclick="viewSessionDetails('${sessionId}')" class="view-btn">
-                            <i class="ph ph-eye"></i>
-                        </button>
+                        ${!isConnected ? 
+                        `<button onclick="reconnectSession('${sessionId}')" class="view-btn">
+                            <i class="class="ph ph-plug""></i>
+                        </button>` : ''}
                         <button onclick="deleteSession('${sessionId}')" class="delete-btn">
                             <i class="ph ph-trash"></i>
                         </button>
@@ -168,31 +169,34 @@ function initializeWebSocket() {
 
     ws.onopen = () => {
         console.log(`WebSocket: Connected successfully`);
+        // Request any pending QR codes after connection is established
+        if (ws.readyState === WebSocket.OPEN) {
+            console.log("WebSocket open, requesting pending QR codes");
+            // You might need to implement this on the server side
+            // ws.send(JSON.stringify({ type: 'request_pending_qr' }));
+        }
     };
-    ws.addEventListener('open', () => {
-      //  notyf.success('WebSocket connection established');
-    });
 
-    ws.addEventListener('message', (event) => {
-        // Log the raw message content directly
-        console.log("WebSocket message received:", event.data);
-      //  notyf.success(`${event.data}`);
-    });
-
-    ws.addEventListener('error', () => {
+    ws.addEventListener('error', (error) => {
+        console.error("WebSocket error:", error);
         notyf.error('WebSocket encountered an error');
     });
 
     ws.addEventListener('close', () => {
+        console.log("WebSocket connection closed");
         notyf.warning('WebSocket connection closed');
     });
+    
     ws.onmessage = (event) => {
         try {
-            let data = JSON.parse(event.data);
-            console.log(`WebSocket message received:`, data);
+            console.log("Raw WebSocket message received:", event.data);
             
-            // Handle existing QR code case
+            let data = JSON.parse(event.data);
+            
+            // Add log to identify QR code session
             if (data.type === 'qr') {
+                console.log(`QR Code received for session: ${data.sessionId || 'unknown'}`);
+                
                 let qrImage = document.getElementById('qr-image');
                 let placeholder = document.getElementById('qrcode-placeholder');
                 
@@ -200,6 +204,8 @@ function initializeWebSocket() {
                     qrImage.src = data.qr;
                     qrImage.style.display = 'block';
                     placeholder.style.display = 'none';
+                } else {
+                    console.error("QR code elements not found in DOM");
                 }
             }
             
@@ -228,15 +234,6 @@ function initializeWebSocket() {
         } catch (error) {
             console.error(`Error processing WebSocket message: ${error}`);
         }
-    };
-
-    ws.onerror = (error) => {
-        console.error(`initializeWebSocket #547: WebSocket error: ${error}`);
-    };
-
-    ws.onclose = () => {
-        console.log(`initializeWebSocket #548: Connection closed, attempting reconnect in 5s`);
-        setTimeout(initializeWebSocket, 5000);
     };
 }
 
@@ -425,8 +422,10 @@ async function updateSessionStatus(sessionId) {
         console.error(`Error updating status for ${sessionId}:`, error);
     }
 }
-async function reconnectSession() {
-    const sessionId = document.getElementById('detailsSessionSelect').value;
+async function reconnectSession(sessionId) {
+    if (!sessionId) {
+        sessionId = document.getElementById('detailsSessionSelect').value;
+    }
     
     console.log(`reconnectSession #891: Attempting to reconnect session: ${sessionId}`);
     
@@ -480,7 +479,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize all required functionality
     initializeWebSocket();
     updateSessionSelect();
-    getBlockedPhones();
     refreshSessions();
     
     initializeNavigation();

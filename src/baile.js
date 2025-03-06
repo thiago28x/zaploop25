@@ -23,7 +23,8 @@ let isStarting = false;
 let lastStartAttempt = 0;
 const MIN_RESTART_INTERVAL = 30000; // 30 seconds
 const baileysApp = express();
-const serverIP = process.env.SERVER_IP;
+// Add a default value for serverIP if not defined in .env
+const serverIP = process.env.SERVER_IP || 'http://localhost:4001/';
 let wss;
 
 /* this is a Express server to send and receive whatsapp messages using baileys.*/
@@ -55,8 +56,10 @@ async function startServer() {
     try {
         await restoreSessions();
         
-        // Initialize WebSocket before starting Express
-        initializeWebSocket();
+        // Initialize WebSocket only if not already running
+        if (!wss || wss.readyState === WebSocket.CLOSED) {
+            initializeWebSocket();
+        }
         
         baileysApp.listen(4001, () => {
             isStarting = false;
@@ -174,7 +177,6 @@ baileysApp.get("/session/:sessionId", async (req, res) => {
 
 const validatePhoneNumber = (req, res, next) => {
     let phoneNumber = req.body.jid || req.params.jid || req.query.jid;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ validatePhoneNumber #004: Validating phone number: ${phoneNumber}`);
 
     try {
         if (!phoneNumber) {
@@ -280,10 +282,22 @@ baileysApp.post("/send-message", validatePhoneNumber, validateMessageBody, async
 });
 
 baileysApp.get("/list-sessions", (req, res) => {
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n/list-sessions: Retrieving all active sessions\n`);
+  //  console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n/list-sessions: Retrieving all active sessions\n`);
     
     try {
         let activeSessions = Array.from(sessions.keys());
+
+        // Log all sessions details
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n/list-sessions: Found ${activeSessions.length} active sessions`);
+        activeSessions.forEach(sessionId => {
+            const session = sessions.get(sessionId);
+            console.log(` - Session ID: ${sessionId}`);
+            console.log(`   Status: ${session?.state || 'unknown'}`);
+            console.log(`   Connected: ${session?.client?.user ? 'Yes' : 'No'}`);
+            if (session?.client?.user) {
+                console.log(`   User: ${session.client.user.name || 'Unknown'} (${session.client.user.id.split('@')[0]})`);
+            }
+        });
         res.send({ 
             status: "success", 
             sessions: activeSessions,
@@ -358,7 +372,7 @@ baileysApp.delete("/session/:sessionId", async (req, res) => {
 
 baileysApp.get("/session-status/:sessionId", (req, res) => {
     let { sessionId } = req.params;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n/session-status/${sessionId}: Fetching status\n`);
+    //console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n/session-status/${sessionId}: Fetching status\n`);
     
     try {
         let client = getSession(sessionId);
@@ -366,6 +380,8 @@ baileysApp.get("/session-status/:sessionId", (req, res) => {
         
         // Add connection verification
         let isConnected = client && state && state.state === 'open';
+        
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ /session-status/${sessionId}: Connection state: ${state ? state.state : 'unknown'}, isConnected: ${isConnected}`);
         
         res.send({
             status: "success",
@@ -762,6 +778,12 @@ baileysApp.get("/session-qr/:sessionId", async (req, res) => {
 
 function initializeWebSocket() {
     try {
+        // Check if WebSocket server is already running
+        if (wss && wss.readyState !== WebSocket.CLOSED) {
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #542: WebSocket server already running, skipping initialization`);
+            return;
+        }
+        
         wss = new WebSocket.Server({ 
             port: 4002,
             host: '0.0.0.0'  // Listen on all network interfaces
@@ -802,7 +824,9 @@ function initializeWebSocket() {
 initializeWebSocket();
 
 // Replace the entire /update-server route with:
-baileysApp.post('/update-server', handleUpdateServer);
+baileysApp.post('/update-server', (req, res, next) => {
+    handleUpdateServer(req, res, next);
+});
 
 baileysApp.post("/reconnect/:sessionId", async (req, res) => {
     const { sessionId } = req.params;

@@ -5,7 +5,6 @@ const { getSession } = require('./createBaileysConnection');
 // Middleware for phone number validation
 const validatePhoneNumber = (req, res, next) => {
     let phoneNumber = req.body.jid || req.params.jid || req.query.jid;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ validatePhoneNumber #004: Validating phone number: ${phoneNumber}`);
 
     try {
         if (!phoneNumber) {
@@ -88,7 +87,7 @@ const calculateTypingDuration = (message) => {
 // Send Text Message function
 async function sendTextMessage(req, res) {
     let { sessionId, jid, message } = req.body;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendTextMessage: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
+    console.log(` sendTextMessage: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
     if (!message) {
         return res.status(405).send({ error: "Message is required" });
@@ -139,14 +138,14 @@ async function sendTextMessage(req, res) {
         // Send the message
         const sentMsg = await client.sendMessage(jid, { text: message });
         
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: /send-message: Message sent successfully\n`);
+        console.log(` /send-message: Message sent successfully\n`);
         return res.status(200).send({ 
             status: "success", 
             message: "Message sent successfully",
             messageInfo: sentMsg
         });
     } catch (error) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: /send-message: Error sending message: ${error}\n`);
+        console.error(` /send-message: Error sending message: ${error}\n`);
         return res.status(500).send({ 
             status: "error", 
             message: "Failed to send message",
@@ -158,7 +157,7 @@ async function sendTextMessage(req, res) {
 // Send Image function
 async function sendImage(req, res) {
     let { sessionId, jid, caption, imageUrl, base64Image } = req.body;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendImage: Request params - sessionId: ${sessionId}, jid: ${jid}\n`);
+    console.log(` sendImage: Request params - sessionId: ${sessionId}, jid: ${jid}\n`);
 
     try {
         let client = getSession(sessionId);
@@ -185,14 +184,14 @@ async function sendImage(req, res) {
             caption: caption || ''
         });
 
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendImage: Image sent successfully\n`);
+        console.log(`  sendImage: Image sent successfully\n`);
         return res.status(200).send({ 
             status: "success", 
             message: "Image sent successfully",
             messageInfo: sentMsg
         });
     } catch (error) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendImage: Error sending image: ${error}\n`);
+        console.error(`  sendImage: Error sending image: ${error}\n`);
         return res.status(500).send({ 
             status: "error", 
             message: "Failed to send image",
@@ -204,7 +203,7 @@ async function sendImage(req, res) {
 // Send Video function
 async function sendVideo(req, res) {
     let { sessionId, jid, caption, videoUrl, base64Video } = req.body;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendVideo: Request params - sessionId: ${sessionId}, jid: ${jid}\n`);
+    console.log(`  sendVideo: Request params - sessionId: ${sessionId}, jid: ${jid}\n`);
 
     try {
         let client = getSession(sessionId);
@@ -231,14 +230,14 @@ async function sendVideo(req, res) {
             caption: caption || ''
         });
 
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendVideo: Video sent successfully\n`);
+        console.log(`  sendVideo: Video sent successfully\n`);
         return res.status(200).send({ 
             status: "success", 
             message: "Video sent successfully",
             messageInfo: sentMsg
         });
     } catch (error) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendVideo: Error sending video: ${error}\n`);
+        console.error(`  sendVideo: Error sending video: ${error}\n`);
         return res.status(500).send({ 
             status: "error", 
             message: "Failed to send video",
@@ -250,7 +249,7 @@ async function sendVideo(req, res) {
 // Send Audio function
 async function sendAudio(req, res) {
     let { sessionId, jid, audioUrl, base64Audio, ptt } = req.body;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendAudio: Request params - sessionId: ${sessionId}, jid: ${jid}\n`);
+    console.log(`  sendAudio: Request params - sessionId: ${sessionId}, jid: ${jid}\n`);
 
     try {
         let client = getSession(sessionId);
@@ -281,14 +280,14 @@ async function sendAudio(req, res) {
             mimetype: 'audio/mp4'
         });
 
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendAudio: Audio sent successfully\n`);
+        console.log(`  sendAudio: Audio sent successfully\n`);
         return res.status(200).send({ 
             status: "success", 
             message: "Audio sent successfully",
             messageInfo: sentMsg
         });
     } catch (error) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendAudio: Error sending audio: ${error}\n`);
+        console.error(` sendAudio: Error sending audio: ${error}\n`);
         return res.status(500).send({ 
             status: "error", 
             message: "Failed to send audio",
