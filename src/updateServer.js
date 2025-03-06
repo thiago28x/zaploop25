@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
 
-function handleUpdateServer(req, res) {
+function handleUpdateServer(req, res, next) {
     // Variables at the top
     const scriptPath = path.join(process.cwd(), 'updateserverfiles.sh');
     
@@ -107,6 +107,8 @@ function handleUpdateServer(req, res) {
     updateProcess.on('error', (error) => {
         console.error(`handleUpdateServer #550: Process error: ${error}`);
     });
+
+    next();
 }
 
 module.exports = handleUpdateServer; 

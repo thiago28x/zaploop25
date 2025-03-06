@@ -1,6 +1,6 @@
 const { getSession } = require('./createBaileysConnection');
 
-async function handleReaction(req, res) {
+async function handleReaction(req, res, next) {
     // Variables at the top
     let { sessionId, messageId, emoji, jid } = req.body;
     
@@ -57,6 +57,7 @@ async function handleReaction(req, res) {
                 jid
             }
         });
+        next();
 
     } catch (error) {
         console.error(`handleReaction #545: Error sending reaction: ${error}`);
@@ -64,6 +65,7 @@ async function handleReaction(req, res) {
             error: "Failed to send reaction",
             details: error.message 
         });
+        next(error);
     }
 }
 

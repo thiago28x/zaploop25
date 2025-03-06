@@ -872,7 +872,7 @@ baileysApp.post("/reconnect/:sessionId", async (req, res) => {
 });
 
 // Replace the entire react-message route with:
-baileysApp.post("/react-message", handleReaction);
+baileysApp.post("/react-message", handleReaction.handleReaction);
 
 // Add this with other route declarations
 baileysApp.use('/contacts', contactsRoutes);
