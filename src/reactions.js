@@ -67,4 +67,7 @@ async function handleReaction(req, res) {
     }
 }
 
-module.exports = handleReaction; 
+// Export the handleReaction function
+module.exports = {
+    handleReaction
+}; 

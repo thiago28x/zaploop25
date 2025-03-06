@@ -6,6 +6,8 @@
     --border-color: #202225;
     --hover-color: #5865f2;
     --button-color: rgb(45, 111, 47);
+    --gradient-color-1: #4e72f4; /* Define gradient color 1 */
+    --gradient-color-2: #5bf684c4; /* Define gradient color 2 */
 }
 
 .hoverable:hover {
@@ -25,6 +27,15 @@ body {
     padding: 0px;
     background-color: var(--background-color);
     color: var(--text-color);
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    ::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+    }
+
+    /* Hide scrollbar for IE, Edge and Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
 }
 
 span {
@@ -53,8 +64,9 @@ span {
 }
 .container {
     margin-left: 270px; /* Add space for sidemenu */
-    max-width: 800px;
+    max-width: calc(100% - 270px);
     margin-top: 65px;
+    width: 100%;
 }
 
 label {
@@ -90,8 +102,12 @@ label {
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    max-width: 650px;
+    max-width: 550px;
     margin: 20px auto;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 50px;
 }
 
 .section.active {
@@ -102,6 +118,7 @@ label {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    max-width: 500px;
 }
 
 input, textarea, select {
@@ -640,4 +657,174 @@ button:hover {
 
 .menu-item i {
     font-size: 20px;
+}
+
+/* Pricing Section Styles */
+#pricing {
+    width: 100%;
+    margin-left: 0;
+    box-sizing: border-box;
+    padding: 0 20px;
+    overflow: hidden; /* Ensure nothing exceeds the container */
+}
+
+.pricing-container {
+    padding: 20px;
+    width: 100%;
+    max-width: 100%; /* Ensure it doesn't exceed its parent */
+    overflow: hidden;
+}
+
+.pricing-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: flex-start;
+    width: 100%;
+    padding: 20px 0;
+    overflow: hidden; /* Ensure nothing exceeds the container */
+}
+
+.pricing-card {
+    background-color: var(--card-background-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 25px;
+    width: calc(33.333% - 20px); /* Equal division of space */
+    flex: 0 0 calc(33.333% - 20px); /* Ensure it respects the width */
+    position: relative;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box;
+    min-width: 290px; 
+    max-width: 350px;
+}
+
+.pricing-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.pricing-card.recommended {
+    border: 2px solid var(--primary-color);
+    transform: scale(1.05);
+}
+
+.pricing-card.recommended:hover {
+    transform: scale(1.05) translateY(-5px);
+}
+
+.pricing-badge {
+    position: absolute;
+    top: -12px;
+    right: 20px;
+    background-color: var(--primary-color);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.pricing-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.pricing-header h3 {
+    margin: 0 0 10px 0;
+    font-size: 22px;
+}
+
+.pricing-price {
+    font-size: 36px;
+    font-weight: bold;
+    color: var(--primary-color);
+    background: linear-gradient(to right, var(--gradient-color-1), var(--gradient-color-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: inline-block;
+}
+
+.pricing-price span {
+    font-size: 16px;
+    font-weight: normal;
+    color: var(--text-color);
+}
+
+.pricing-save {
+    margin-top: 5px;
+    color: #4CAF50;
+    font-size: 14px;
+}
+
+.pricing-features ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pricing-features li {
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pricing-features i {
+    color: #4CAF50;
+}
+
+.pricing-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin-top: 20px;
+    background: linear-gradient(to right, var(--gradient-color-1), var(--gradient-color-2));
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    transition: color 0.3s ease; /* Transition for the text color */
+}
+
+.pricing-btn:hover {
+    color: rgb(250, 250, 250); /* Change text color on hover */
+    background-size: 200% auto;
+    animation: gradientShift 1.5s linear infinite; /* Adjust the '3s' value to change the speed */
+}
+
+@keyframes gradientShift {
+    0% {
+        background-position: 0% center;
+    }
+    100% {
+        background-position: -200% center;
+    }
+}
+
+/* Responsive adjustments for pricing cards */
+@media (max-width: 768px) {
+    .pricing-card {
+        width: 100%; /* Take up 100% of the container width */
+        flex: 0 0 100%;
+    }
+
+    .pricing-card.recommended {
+        transform: scale(1.05);
+        order: 0;
+    }
+}
+
+/* Exception for pricing section */
+#pricing.section {
+    max-width: 100%;
+    width: 100%;
+    margin: 20px 0;
+    border-radius: 0;
 }

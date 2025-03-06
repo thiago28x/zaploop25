@@ -85,10 +85,10 @@ const calculateTypingDuration = (message) => {
     };
 };
 
-// Send Text Message (original route: /send-message)
-router.post("/send-message", validatePhoneNumber, validateMessageBody, async (req, res) => {
+// Send Text Message function
+async function sendTextMessage(req, res) {
     let { sessionId, jid, message } = req.body;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: /send-message: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendTextMessage: Request params - sessionId: ${sessionId}, jid: ${jid}, message: ${message}\n`);
   
     if (!message) {
         return res.status(405).send({ error: "Message is required" });
@@ -97,7 +97,6 @@ router.post("/send-message", validatePhoneNumber, validateMessageBody, async (re
         return res.status(405).send({ error: "Message too short" });
     }
 
-  
     try {
         let client = getSession(sessionId);
         if (!client) {
@@ -122,211 +121,201 @@ router.post("/send-message", validatePhoneNumber, validateMessageBody, async (re
             totalDelay 
         } = calculateTypingDuration(message);
 
-        //trim the message content to 1000 characters
-        message = message.substring(0, 400);
-
-        //remove "." from the message
-        message = message.replace(".", "");
-
-        //replace "você" with "vc"
-        message = message.replace("você", "vc");
-
         // Random initial delay for more natural behavior
         await new Promise(resolve => setTimeout(resolve, initialRandomDelay));
 
-
-
-
-        //add a random delay between 1 and 3 seconds
-        const randomDelay = Math.floor(Math.random() * 2000) + 1000;
-        await new Promise(resolve => setTimeout(resolve, randomDelay));
-
-        // Update presence to 'composing'
+        // Simulate typing
         await client.sendPresenceUpdate('composing', jid);
-
-
-        // Simulate typing delay
+        
+        // Wait for the calculated typing duration
         await new Promise(resolve => setTimeout(resolve, typingDuration));
-
-        // Stop typing and set to paused
+        
+        // Stop typing indicator
         await client.sendPresenceUpdate('paused', jid);
-
-        // Small additional delay before sending message
+        
+        // Small final delay before sending
         await new Promise(resolve => setTimeout(resolve, finalDelay));
 
         // Send the message
-        await client.sendMessage(jid, { text: message });
-
-        // Reset presence to available
-        await client.sendPresenceUpdate('available', jid);
-
-        res.send({ 
-            status: "Message sent", 
-            typingDuration,
-            totalDelay,
-            initialRandomDelay,
-            finalDelay
-        });
-    } catch (error) {
-        console.error(`/send-message: Error sending message: ${error}\n`);
-        res.status(500).send({ 
-            error: "Message not sent",
-            details: error.message 
-        });
-    }
-});
-
-// Send Image (original route: /send-image)
-router.post("/send-image", validatePhoneNumber, validateMessageBody, async (req, res) => {
-    let { sessionId, jid, imageUrl, caption, viewOnce } = req.body;
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ /send-image #432: Request params - sessionId: ${sessionId}, jid: ${jid}, imageUrl: ${imageUrl}, caption: ${caption}, viewOnce: ${viewOnce}`);
-    
-    try {
-        let client = getSession(sessionId);
-        if (!client) {
-            throw new Error("Session not found");
-        }
+        const sentMsg = await client.sendMessage(jid, { text: message });
         
-        await client.sendMessage(jid, {
-            image: { url: imageUrl || 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg' },
-            caption: caption || 'hello!',
-            viewOnce: viewOnce || false
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: /send-message: Message sent successfully\n`);
+        return res.status(200).send({ 
+            status: "success", 
+            message: "Message sent successfully",
+            messageInfo: sentMsg
         });
-
-        res.status(200).send({ status: "200 - Image sent successfully" });
     } catch (error) {
-        console.error(`/send-image: Error sending image: ${error}\n`);
-        res.status(500).send({ 
-            error: "Image not sent",
-            details: error.message 
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: /send-message: Error sending message: ${error}\n`);
+        return res.status(500).send({ 
+            status: "error", 
+            message: "Failed to send message",
+            error: error.message
         });
     }
-});
+}
 
-// Send Video (original route: /send-video)
-router.post("/send-video", validatePhoneNumber, validateMessageBody, async (req, res) => {
-    let { sessionId, jid, videoUrl, caption, gifPlayback, viewOnce } = req.body;
-    
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ sendVideo #543: Sending video to ${jid} from session ${sessionId}`);
-
-    // Remove redundant input validation for jid
-    if (!videoUrl) {
-        return res.status(400).send({ 
-            error: "Missing required fields",
-            details: "videoUrl is required" 
-        });
-    }
+// Send Image function
+async function sendImage(req, res) {
+    let { sessionId, jid, caption, imageUrl, base64Image } = req.body;
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendImage: Request params - sessionId: ${sessionId}, jid: ${jid}\n`);
 
     try {
         let client = getSession(sessionId);
         if (!client) {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ sendVideo #544: No session found for ${sessionId}`);
-            return res.status(404).send({ error: "No session found" });
+            return res.status(404).send({ error: "no session found" });
         }
-   
-        // Random delay for more natural behavior
-        const randomDelay = Math.floor(Math.random() * 3000) + 1000;
-        await new Promise(resolve => setTimeout(resolve, randomDelay));
 
-        // Send video message
-        await client.sendMessage(jid, {
-            video: { url: videoUrl },
-            caption: caption || '',
-            gifPlayback: gifPlayback || false,
-            viewOnce: viewOnce || false
+        // Format JID if needed
+        if (!jid.includes('@')) {
+            jid = `${jid}@s.whatsapp.net`;
+        }
+
+        let imageData;
+        if (imageUrl) {
+            imageData = { url: imageUrl };
+        } else if (base64Image) {
+            imageData = Buffer.from(base64Image, 'base64');
+        } else {
+            return res.status(400).send({ error: "Image URL or base64 image is required" });
+        }
+
+        const sentMsg = await client.sendMessage(jid, {
+            image: imageData,
+            caption: caption || ''
         });
 
-        res.send({ 
-            status: "success",
-            message: "Video sent successfully" 
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendImage: Image sent successfully\n`);
+        return res.status(200).send({ 
+            status: "success", 
+            message: "Image sent successfully",
+            messageInfo: sentMsg
         });
-
     } catch (error) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ sendVideo #545: Error sending video: ${error}`);
-        res.status(500).send({ 
-            error: "Failed to send video",
-            details: error.message 
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendImage: Error sending image: ${error}\n`);
+        return res.status(500).send({ 
+            status: "error", 
+            message: "Failed to send image",
+            error: error.message
         });
     }
-});
+}
 
-// Send Audio/Voice Note (original route: /send-audio)
-router.post("/send-audio", validatePhoneNumber, validateMessageBody, async (req, res) => {
-    let { sessionId, jid, audioUrl, seconds = 2 } = req.body;
-
-    // Remove redundant input validation for jid
-    if (!audioUrl) {
-        return res.status(400).send({ 
-            error: "Missing required fields",
-            details: "audioUrl is required" 
-        });
-    }
+// Send Video function
+async function sendVideo(req, res) {
+    let { sessionId, jid, caption, videoUrl, base64Video } = req.body;
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendVideo: Request params - sessionId: ${sessionId}, jid: ${jid}\n`);
 
     try {
         let client = getSession(sessionId);
         if (!client) {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ sendAudio #433: No session found for ${sessionId}`);
-            return res.status(404).send({ error: "No session found" });
+            return res.status(404).send({ error: "no session found" });
         }
 
-        // Update presence to 'recording'
-        await client.sendPresenceUpdate('recording', jid);
+        // Format JID if needed
+        if (!jid.includes('@')) {
+            jid = `${jid}@s.whatsapp.net`;
+        }
 
-        // Random delay for more natural behavior
-        const randomDelay = Math.floor(Math.random() * 3000) + 1000;
-        await new Promise(resolve => setTimeout(resolve, randomDelay));
+        let videoData;
+        if (videoUrl) {
+            videoData = { url: videoUrl };
+        } else if (base64Video) {
+            videoData = Buffer.from(base64Video, 'base64');
+        } else {
+            return res.status(400).send({ error: "Video URL or base64 video is required" });
+        }
 
- // Update presence to paused
- await client.sendPresenceUpdate('paused', jid);
-
-        // Send voice note
-
-        await client.sendMessage(jid, {
-            audio: { url: audioUrl },
-            mimetype: 'audio/mp4',
-            ptt: true, // This makes it a voice note
-            seconds: seconds
+        const sentMsg = await client.sendMessage(jid, {
+            video: videoData,
+            caption: caption || ''
         });
 
-        // Set presence back to available
-        await client.sendPresenceUpdate('available', jid);
-
-        res.send({ 
-            status: "success",
-            message: "Voice note sent successfully",
-            details: {
-                duration: seconds
-            }
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendVideo: Video sent successfully\n`);
+        return res.status(200).send({ 
+            status: "success", 
+            message: "Video sent successfully",
+            messageInfo: sentMsg
         });
-
     } catch (error) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ sendAudio #434: Error sending voice note: ${error}`);
-        // Try to reset presence state in case of error
-        try {
-            await client?.sendPresenceUpdate('available', jid);
-        } catch {}
-        
-        res.status(500).send({ 
-            error: "Failed to send voice note",
-            details: error.message 
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendVideo: Error sending video: ${error}\n`);
+        return res.status(500).send({ 
+            status: "error", 
+            message: "Failed to send video",
+            error: error.message
         });
     }
-});
+}
 
-// React to a message (original route: /react-message)
-router.post("/react-message", validatePhoneNumber, async (req, res) => {
+// Send Audio function
+async function sendAudio(req, res) {
+    let { sessionId, jid, audioUrl, base64Audio, ptt } = req.body;
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendAudio: Request params - sessionId: ${sessionId}, jid: ${jid}\n`);
+
+    try {
+        let client = getSession(sessionId);
+        if (!client) {
+            return res.status(404).send({ error: "no session found" });
+        }
+
+        // Format JID if needed
+        if (!jid.includes('@')) {
+            jid = `${jid}@s.whatsapp.net`;
+        }
+
+        let audioData;
+        if (audioUrl) {
+            audioData = { url: audioUrl };
+        } else if (base64Audio) {
+            audioData = Buffer.from(base64Audio, 'base64');
+        } else {
+            return res.status(400).send({ error: "Audio URL or base64 audio is required" });
+        }
+
+        // Determine if this should be sent as a voice note
+        const isPtt = ptt === true || ptt === 'true';
+
+        const sentMsg = await client.sendMessage(jid, {
+            audio: audioData,
+            ptt: isPtt,
+            mimetype: 'audio/mp4'
+        });
+
+        console.log(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendAudio: Audio sent successfully\n`);
+        return res.status(200).send({ 
+            status: "success", 
+            message: "Audio sent successfully",
+            messageInfo: sentMsg
+        });
+    } catch (error) {
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ \n💫BAILEYS SERVER: sendAudio: Error sending audio: ${error}\n`);
+        return res.status(500).send({ 
+            status: "error", 
+            message: "Failed to send audio",
+            error: error.message
+        });
+    }
+}
+
+// Send Reaction function
+async function sendReaction(req, res) {
     let { sessionId, messageId, emoji, jid } = req.body;
     
-   //if emoji is null or empty use a heart emoji
-   if (!emoji) {
-    emoji = '❤️';
-   }
+    //if emoji is null or empty use a heart emoji
+    if (!emoji) {
+        emoji = '❤️';
+    }
 
     try {
         let client = getSession(sessionId);
         if (!client) {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ reactMessage #544: No session found for ${sessionId}`);
+            console.log(` BAILE 🧜‍♀️🧜‍♀️ sendReaction: No session found for ${sessionId}`);
             return res.status(404).send({ error: "No session found" });
+        }
+
+        // Format JID if needed
+        if (!jid.includes('@')) {
+            jid = `${jid}@s.whatsapp.net`;
         }
 
         // Send reaction
@@ -337,7 +326,7 @@ router.post("/react-message", validatePhoneNumber, async (req, res) => {
             }
         });
 
-        res.send({ 
+        return res.status(200).send({ 
             status: "success",
             message: "Reaction sent successfully",
             details: {
@@ -348,13 +337,14 @@ router.post("/react-message", validatePhoneNumber, async (req, res) => {
         });
 
     } catch (error) {
-        console.error(` BAILE 🧜‍♀️🧜‍♀️ reactMessage #545: Error sending reaction: ${error}`);
-        res.status(500).send({ 
-            error: "Failed to send reaction",
-            details: error.message 
+        console.error(` BAILE 🧜‍♀️🧜‍♀️ sendReaction: Error sending reaction: ${error}`);
+        return res.status(500).send({ 
+            status: "error",
+            message: "Failed to send reaction",
+            error: error.message 
         });
     }
-});
+}
 
 // Presence Update Route
 router.post("/presence-update", validatePhoneNumber, async (req, res) => {
@@ -416,6 +406,111 @@ router.post("/presence-update", validatePhoneNumber, async (req, res) => {
             error: "Failed to update presence",
             details: error.message 
         });
+    }
+});
+
+// Send Text Message (original route: /send-message)
+router.post("/send-message", validatePhoneNumber, validateMessageBody, async (req, res) => {
+    return await sendTextMessage(req, res);
+});
+
+// Send Image (original route: /send-image)
+router.post("/send-image", validatePhoneNumber, validateMessageBody, async (req, res) => {
+    return await sendImage(req, res);
+});
+
+// Send Video (original route: /send-video)
+router.post("/send-video", validatePhoneNumber, validateMessageBody, async (req, res) => {
+    return await sendVideo(req, res);
+});
+
+// Send Audio/Voice Note (original route: /send-audio)
+router.post("/send-audio", validatePhoneNumber, validateMessageBody, async (req, res) => {
+    return await sendAudio(req, res);
+});
+
+// React to a message (original route: /react-message)
+router.post("/react-message", validatePhoneNumber, async (req, res) => {
+    return await sendReaction(req, res);
+});
+
+// Unified send route that handles all message types
+router.post("/", async (req, res) => {
+    const { session, phone, type } = req.body;
+    
+    if (!session || !phone || !type) {
+        return res.status(400).json({
+            error: 'Missing required fields',
+            details: 'session, phone, and type are required'
+        });
+    }
+    
+    // Map the request to the appropriate format for existing handlers
+    req.body.sessionId = session;
+    req.body.jid = phone;
+    
+    // Route based on message type
+    switch (type.toLowerCase()) {
+        case 'text':
+            // Validate message for text type
+            if (!req.body.message) {
+                return res.status(400).json({
+                    error: 'Missing required field',
+                    details: 'message is required for text type'
+                });
+            }
+            // Forward to text message handler
+            return await sendTextMessage(req, res);
+            
+        case 'image':
+            // Validate image fields
+            if (!req.body.imageUrl && !req.body.base64Image) {
+                return res.status(400).json({
+                    error: 'Missing required field',
+                    details: 'imageUrl or base64Image is required for image type'
+                });
+            }
+            // Forward to image handler
+            return await sendImage(req, res);
+            
+        case 'video':
+            // Validate video fields
+            if (!req.body.videoUrl && !req.body.base64Video) {
+                return res.status(400).json({
+                    error: 'Missing required field',
+                    details: 'videoUrl or base64Video is required for video type'
+                });
+            }
+            // Forward to video handler
+            return await sendVideo(req, res);
+            
+        case 'audio':
+            // Validate audio fields
+            if (!req.body.audioUrl && !req.body.base64Audio) {
+                return res.status(400).json({
+                    error: 'Missing required field',
+                    details: 'audioUrl or base64Audio is required for audio type'
+                });
+            }
+            // Forward to audio handler
+            return await sendAudio(req, res);
+            
+        case 'reaction':
+            // Validate reaction fields
+            if (!req.body.messageId || !req.body.emoji) {
+                return res.status(400).json({
+                    error: 'Missing required fields',
+                    details: 'messageId and emoji are required for reaction type'
+                });
+            }
+            // Use the reaction handler
+            return await sendReaction(req, res);
+            
+        default:
+            return res.status(400).json({
+                error: 'Invalid message type',
+                details: 'Type must be one of: text, image, video, audio, reaction'
+            });
     }
 });
 

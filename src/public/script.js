@@ -112,7 +112,7 @@ async function refreshSessions() {
         }
     } catch (error) {
         console.error(`refreshSessions: Error refreshing sessions: ${error}\n`);
-        notyf.error('Failed to refresh sessions');
+      //  notyf.error('Failed to refresh sessions');
     }
 }
 
@@ -170,11 +170,13 @@ function initializeWebSocket() {
         console.log(`WebSocket: Connected successfully`);
     };
     ws.addEventListener('open', () => {
-        notyf.success('WebSocket connection established');
+      //  notyf.success('WebSocket connection established');
     });
 
-    ws.addEventListener('message', () => {
-        notyf.success('New message received');
+    ws.addEventListener('message', (event) => {
+        // Log the raw message content directly
+        console.log("WebSocket message received:", event.data);
+      //  notyf.success(`${event.data}`);
     });
 
     ws.addEventListener('error', () => {
@@ -261,6 +263,7 @@ async function createSession() {
     let sessionId = getGlobalSessionId();
     let qrImage = document.getElementById('qr-image');
     let placeholder = document.getElementById('qrcode-placeholder');
+    let qrContainer = document.querySelector('.qr-container'); // Get the container
     let maxAttempts = 10;
     let attempts = 0;
     let qrFound = false;
@@ -276,9 +279,13 @@ async function createSession() {
     try {
         // Show loading state
         if (qrImage && placeholder) {
-            qrImage.style.display = 'none';
             placeholder.style.display = 'block';
             placeholder.innerHTML = 'Loading QR code...';
+        }
+
+        // Show the qr-container
+        if (qrContainer) {
+            qrContainer.style.display = 'block';
         }
 
         // First create the session
@@ -875,7 +882,7 @@ async function getBlockedPhones() {
         }
     } catch (error) {
         console.error(`getBlockedPhones #766: Error fetching blocked phones: ${error}`);
-        notyf.error('Failed to fetch blocked phones');
+      //  notyf.error('Failed to fetch blocked phones');
     }
 }
 
@@ -1124,3 +1131,28 @@ function initializeNavigation() {
         });
     });
 }
+
+// Add this JavaScript code to your script.js file
+document.querySelectorAll('.pricing-btn').forEach(button => {
+    button.addEventListener('click', function(e) {
+        // Get the click position
+        let rect = this.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        let y = e.clientY - rect.top;
+
+        // Create the splash effect element
+        let splash = document.createElement('span');
+        splash.classList.add('splash-effect');
+        splash.style.left = x + 'px';
+        splash.style.top = y + 'px';
+        this.appendChild(splash);
+
+        // Animate the splash effect
+        splash.classList.add('animate');
+
+        // Remove the splash effect element after the animation is complete
+        splash.addEventListener('animationend', function() {
+            splash.remove();
+        });
+    });
+});
