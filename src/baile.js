@@ -644,6 +644,36 @@ baileysApp.get('/health', (req, res) => {
     });
 });
 
+// Add detailed status route
+baileysApp.get('/status', (req, res) => {
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \n/status: Checking detailed server status\n`);
+    
+    const serverStatus = {
+        status: 'online',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        serverInfo: {
+            platform: process.platform,
+            arch: process.arch,
+            nodeVersion: process.version,
+            memoryUsage: process.memoryUsage(),
+            cpuUsage: process.cpuUsage()
+        },
+        whatsappStatus: {
+            activeSessions: sessions.size,
+            connectionStates: Object.fromEntries(connectionStates),
+            serverIP: serverIP
+        },
+        websocketStatus: {
+            isRunning: wss && wss.readyState === WebSocket.OPEN,
+            port: 4002,
+            connections: wss ? wss.clients.size : 0
+        }
+    };
+
+    res.send(serverStatus);
+});
+
 // Define the getServerStatus function
 function getServerStatus(req, res) {
     // Variables at the top
