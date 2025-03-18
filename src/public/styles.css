@@ -141,10 +141,18 @@ button {
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    margin: 10px;
 }
 
 button:hover {
     background-color: var(--hover-color);
+}
+
+.warning {
+    color: #fff;
+    font-weight: bold;
+    background-color: #b9962e;
+    border: 1px solid #b9962e;
 }
 
 #sessionsList {
@@ -260,6 +268,9 @@ button:hover {
 .qr-container {
     margin-top: 20px;
     text-align: center;
+    border: 0px solid #ddd;
+    border-radius: 4px;
+    padding: 20px;
 }
 
 #qrcode-placeholder {
@@ -432,13 +443,7 @@ button:hover {
     background: #45a049;
 }
 
-.qr-container {
-    text-align: center;
-    margin: 20px;
-    padding: 20px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-}
+
 
 .qr-placeholder {
     min-height: 256px;

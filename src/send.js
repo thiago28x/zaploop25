@@ -413,6 +413,33 @@ router.post("/send-message", validatePhoneNumber, validateMessageBody, async (re
     return await sendTextMessage(req, res);
 });
 
+// auxiliary function to send messages via GET request, passing the phone and messages as query parameters
+router.get("/send-message", async (req, res) => {
+    const { phone, message } = req.query;
+    
+    if (!phone || !message) {
+        return res.status(400).json({
+            error: 'Missing parameters',
+            details: 'phone and message are required in query parameters'
+        });
+    }
+
+    // Clean and format phone number
+    const cleanPhone = phone
+        .trim()
+        .replace(/@s\.whatsapp\.net/g, '')
+        .replace(/@c\.us/g, '')
+        .replace(/\D/g, '');
+
+    req.body = {
+        jid: cleanPhone + '@s.whatsapp.net',
+        message: message,
+        sessionId: 'default'
+    };
+
+    return await sendTextMessage(req, res);
+});
+
 // Send Image (original route: /send-image)
 router.post("/send-image", validatePhoneNumber, validateMessageBody, async (req, res) => {
     return await sendImage(req, res);
@@ -510,6 +537,44 @@ router.post("/", async (req, res) => {
                 error: 'Invalid message type',
                 details: 'Type must be one of: text, image, video, audio, reaction'
             });
+    }
+});
+
+// Delete session via GET request
+router.get("/delete-session", async (req, res) => {
+    const { session } = req.query;
+    
+    if (!session) {
+        return res.status(400).json({
+            error: 'Missing parameter',
+            details: 'session name is required in query parameters'
+        });
+    }
+
+    try {
+        let client = getSession(session);
+        if (!client) {
+            return res.status(404).json({
+                error: 'Session not found',
+                details: `No session found with name: ${session}`
+            });
+        }
+
+        // Close the session
+        await client.logout();
+        await client.end();
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Session deleted successfully',
+            session: session
+        });
+    } catch (error) {
+        console.error(` Delete session error: ${error}\n`);
+        return res.status(500).json({
+            error: 'Failed to delete session',
+            details: error.message
+        });
     }
 });
 

@@ -63,6 +63,7 @@ export const makeSocket = (config: SocketConfig) => {
 		transactionOpts,
 		qrTimeout,
 		makeSignalRepository,
+		sessionId,
 	} = config
 
 	const url = typeof waWebSocketUrl === 'string' ? new URL(waWebSocketUrl) : waWebSocketUrl
@@ -724,7 +725,7 @@ export const makeSocket = (config: SocketConfig) => {
 	})
 
 	if(printQRInTerminal) {
-		printQRIfNecessaryListener(ev, logger)
+		printQRIfNecessaryListener(ev, logger, sessionId)
 	}
 
 	return {

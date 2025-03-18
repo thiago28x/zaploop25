@@ -1,14 +1,14 @@
 require('dotenv').config();
 
 const express = require('express');
-const { startBaileysConnection, getSession, sessions, connectionStates, getStoreData, restartAllSessions } = require('./createBaileysConnection');
+const { startBaileysConnection, getSession, sessions, connectionStates, getStoreData, restartAllSessions, completeSessionWipeout } = require('./createBaileysConnection');
 const { restoreSessions } = require('./restoreSessions');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const WebSocket = require('ws');
 const QRCode = require('qrcode');
-const gracefulShutdown = require('./shutdown');
+const { gracefulShutdown, setWebSocketServer } = require('./shutdown');
 
 // Import the new send routes
 const sendRoutes = require('./send');
@@ -36,7 +36,7 @@ let wss;
 // Restore sessions before starting the server
 async function startServer() {
     const currentTime = Date.now();
-    console.log(` BAILE 🧜‍♀️🧜‍♀️ \n 🍪 BAILEYS SERVER:  \nstartServer: Initializing server\n`);
+    console.log(`🍪 BAILEYS SERVER:  \nstartServer: Initializing server\n`);
     
     // Prevent multiple simultaneous start attempts
     if (isStarting) {
@@ -54,7 +54,10 @@ async function startServer() {
     lastStartAttempt = currentTime;
     
     try {
-        await restoreSessions();
+
+        if (process.env.RESTARTS_SESSION_ON_SERVER_START === 'true') {
+            await restoreSessions(); //restore sessions from the sessions folder
+        }
         
         // Initialize WebSocket only if not already running
         if (!wss || wss.readyState === WebSocket.CLOSED) {
@@ -99,7 +102,7 @@ baileysApp.post("/start", async (req, res) => {
     try {
         let sessionDir = path.join(process.cwd(), 'whatsapp-sessions', sessionId);
         if (!fs.existsSync(sessionDir)) {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ /start #544: Creating new session directory for ${sessionId}`);
+            console.log(` BAILE ��‍♀️🧜‍♀️ /start #544: Creating new session directory for ${sessionId}`);
             fs.mkdirSync(sessionDir, { recursive: true });
         }
 
@@ -783,39 +786,55 @@ function initializeWebSocket() {
             console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #542: WebSocket server already running, skipping initialization`);
             return;
         }
-        
-        wss = new WebSocket.Server({ 
-            port: 4002,
-            host: '0.0.0.0'  // Listen on all network interfaces
-        });
-        
-        console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #543: Server initialized on port 4002`);
-        
-        wss.on('connection', (ws) => {
-            console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #544: Client connected`);
-            
-            // Send initial connection confirmation with sessions info
-            ws.send(JSON.stringify({
-                type: 'connection',
-                status: 'connected',
-                sessions: Array.from(sessions.keys()) // Convert sessions Map keys to array
-            }));
-            
-            ws.on('error', (error) => {
-                console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #545: Error: ${error}`);
-            });
 
-            ws.on('close', () => {
-                console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #546: Client disconnected`);
-            });
-        });
+        // Check if port is in use
+        const net = require('net');
+        const tester = net.createServer()
+            .once('error', (err) => {
+                if (err.code === 'EADDRINUSE') {
+                    console.warn(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #543: Port 4002 is already in use, skipping WebSocket initialization`);
+                    return;
+                }
+            })
+            .once('listening', () => {
+                tester.close();
+                // Port is free, create WebSocket server
+                wss = new WebSocket.Server({ 
+                    port: 4002,
+                    host: '0.0.0.0'  // Listen on all network interfaces
+                });
+                
+                // Register the WebSocket server with the shutdown handler
+                setWebSocketServer(wss);
+                
+                console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #544: Server initialized on port 4002`);
+                
+                wss.on('connection', (ws) => {
+                    console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #545: Client connected`);
+                    
+                    // Send initial connection confirmation with sessions info
+                    ws.send(JSON.stringify({
+                        type: 'connection',
+                        status: 'connected',
+                        sessions: Array.from(sessions.keys()) // Convert sessions Map keys to array
+                    }));
+                    
+                    ws.on('error', (error) => {
+                        console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #546: Error: ${error}`);
+                    });
 
-        wss.on('error', (error) => {
-            console.error(`initializeWebSocket #547: Server error: ${error}`);
-        });
+                    ws.on('close', () => {
+                        console.log(` BAILE 🧜‍♀️🧜‍♀️ initializeWebSocket #547: Client disconnected`);
+                    });
+                });
+
+                wss.on('error', (error) => {
+                    console.error(`initializeWebSocket #548: Server error: ${error}`);
+                });
+            });
 
     } catch (error) {
-        console.error(`initializeWebSocket #548: Failed to initialize WebSocket server: ${error}`);
+        console.error(`initializeWebSocket #549: Failed to initialize WebSocket server: ${error}`);
         throw error; // Rethrow to be caught by startServer
     }
 }
@@ -934,6 +953,21 @@ baileysApp.post("/restart-all-sessions", async (req, res) => {
             error: error.message,
             timestamp: new Date().toISOString()
         });
+    }
+});
+
+// Add wipeout route before other routes
+baileysApp.post("/wipeout", async (req, res) => {
+    try {
+        const result = await completeSessionWipeout();
+        if (result) {
+            res.status(200).json({ success: true, message: 'All sessions wiped out successfully' });
+        } else {
+            res.status(500).json({ success: false, message: 'Failed to wipe out all sessions' });
+        }
+    } catch (error) {
+        console.error('Wipeout route error:', error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 

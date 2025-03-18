@@ -28,12 +28,37 @@ let ws;
 let qrCheckInterval;
 const ipAddress = '209.145.62.86';
 
+// Track QR code requests
+const qrRequests = new Map(); // Map to store session requests
+const QR_REQUEST_COOLDOWN = 5000; // 5 seconds in milliseconds
+
 document.getElementById('detailsSessionSelect').value;
 const detailsSelect = document.getElementById('detailsSessionSelect');
 detailsSelect.value = detailsSelect.options.length > 0 ? detailsSelect.options[0].value : 'default';
 
-//log the browser user css dark mode preference
-console.log(`Browser user CSS dark mode preference: ${window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'Dark' : 'Light'}`);
+async function completeSessionWipeout() {
+    try {
+        const response = await fetch('/wipeout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            notyf.success(data.message);
+            await refreshSessions(); // Refresh the sessions list
+        } else {
+            notyf.error(data.message);
+        }
+    } catch (error) {
+        notyf.error('Error during wipeout: ' + error.message);
+        console.error('Error:', error);
+    }
+}
+
+document.getElementById('completeSessionWipeout').addEventListener('click', completeSessionWipeout);
 
 function updateServer() {
     fetch('/update-server', { method: 'POST' })
@@ -260,10 +285,10 @@ async function createSession() {
     let sessionId = getGlobalSessionId();
     let qrImage = document.getElementById('qr-image');
     let placeholder = document.getElementById('qrcode-placeholder');
-    let qrContainer = document.querySelector('.qr-container'); // Get the container
-    let maxAttempts = 10;
-    let attempts = 0;
+    let qrContainer = document.querySelector('.qr-container');
     let qrFound = false;
+    const MAX_RETRIES = 3;  // Increased retries
+    const RETRY_DELAY = 3000; // 3 seconds between retries
 
     //return if sessionId is empty
     if (!sessionId) {
@@ -271,13 +296,32 @@ async function createSession() {
         return;
     }
     
+    // Check for recent requests
+    const now = Date.now();
+    const lastRequest = qrRequests.get(sessionId);
+    if (lastRequest) {
+        const timeSinceLastRequest = now - lastRequest.timestamp;
+        if (timeSinceLastRequest < QR_REQUEST_COOLDOWN) {
+            const message = `Too many requests for session "${sessionId}". Request #${lastRequest.count + 1} - Please wait ${Math.ceil((QR_REQUEST_COOLDOWN - timeSinceLastRequest) / 1000)} seconds.`;
+            console.warn(`createSession #543: ${message}`);
+            notyf.error(message);
+            return;
+        }
+    }
+
+    // Update request tracking
+    qrRequests.set(sessionId, {
+        timestamp: now,
+        count: lastRequest ? lastRequest.count + 1 : 1
+    });
+    
     console.log(`createSession #543: Creating session with ID: ${sessionId}`);
 
     try {
         // Show loading state
         if (qrImage && placeholder) {
             placeholder.style.display = 'block';
-            placeholder.innerHTML = 'Loading QR code...';
+            placeholder.innerHTML = 'Initializing session...';
         }
 
         // Show the qr-container
@@ -299,41 +343,80 @@ async function createSession() {
             throw new Error(errorData.message || 'Failed to create session');
         }
 
-        // Wait for QR code to be available
-        while (attempts < maxAttempts && !qrFound) {
-            console.log(`createSession #544: Attempting to fetch QR code, attempt ${attempts + 1}`);
+        // Initial delay to allow server initialization
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        if (placeholder) {
+            placeholder.innerHTML = 'Waiting for QR code...';
+        }
+
+        // Try to fetch QR code with multiple retries
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            console.log(`createSession #544: Attempting to fetch QR code, attempt ${attempt + 1} of ${MAX_RETRIES}`);
             try {
-                let qrResponse = await fetch(`/session-qr/${sessionId}`);
+                let qrResponse = await fetch(`/session-status/${sessionId}`);
+                let statusData = await qrResponse.json();
+                
+                // Check if session is already connected
+                if (statusData.connectionState?.state === 'open') {
+                    console.log(`createSession #545: Session ${sessionId} is already connected`);
+                    if (placeholder) {
+                        placeholder.innerHTML = 'Session connected successfully!';
+                    }
+                    notyf.success('Session connected successfully!');
+                    return;
+                }
+
+                // Try to get QR code
+                qrResponse = await fetch(`/session-qr/${sessionId}`);
+                
                 if (qrResponse.ok) {
-                    qrFound = true;
                     let blob = await qrResponse.blob();
-                    let imageUrl = URL.createObjectURL(blob);
-                    
-                    if (qrImage && placeholder) {
-                        qrImage.src = imageUrl;
-                        qrImage.style.display = 'block';
-                        placeholder.style.display = 'none';
+                    if (blob.size > 0) {  // Verify we got actual data
+                        let imageUrl = URL.createObjectURL(blob);
                         
-                        // Clean up the object URL after the image loads
-                        qrImage.onload = () => URL.revokeObjectURL(imageUrl);
+                        if (qrImage && placeholder) {
+                            qrImage.src = imageUrl;
+                            qrImage.style.display = 'block';
+                            placeholder.style.display = 'none';
+                            
+                            // Clean up the object URL after the image loads
+                            qrImage.onload = () => URL.revokeObjectURL(imageUrl);
+                        }
+                        qrFound = true;
+                        break;
                     }
                 }
-            } catch (error) {
-                console.error(`createSession #545: Error: ${error}`);
+                
+                console.warn(`createSession #546: Attempt ${attempt + 1} failed, retrying in ${RETRY_DELAY/1000} seconds...`);
                 if (placeholder) {
-                    placeholder.innerHTML = 'Error generating QR code';
+                    placeholder.innerHTML = `Generating QR code (Attempt ${attempt + 1}/${MAX_RETRIES})...`;
                 }
-                notyf.error(error.message || 'Failed to create session');
+                
+                // Wait before next attempt
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                
+            } catch (error) {
+                console.error(`createSession #547: Error on attempt ${attempt + 1}:`, error);
+                // Continue to next attempt
             }
         }
 
-        // Start checking for QR code
+        if (!qrFound) {
+            if (placeholder) {
+                placeholder.innerHTML = 'Could not generate QR code. Please try deleting the session and creating a new one.';
+            }
+            notyf.error('Failed to generate QR code after multiple attempts');
+            return;
+        }
+
+        // Start checking for QR code scan
         startQRCheck(sessionId);
 
     } catch (error) {
-        console.error(`createSession #546: Error: ${error}`);
+        console.error(`createSession #548: Error:`, error);
         if (placeholder) {
-            placeholder.innerHTML = 'Error generating QR code';
+            placeholder.innerHTML = 'Error creating session';
         }
         notyf.error(error.message || 'Failed to create session');
     }
@@ -442,7 +525,8 @@ async function reconnectSession(sessionId) {
         const data = await response.json();
         
         if (response.ok) {
-            notyf.success(`Session ${sessionId} reconnected successfully`);
+            console.log(`reconnectSession #893: Response: ${JSON.stringify(response)}`);
+         //  notyf.success(`Session ${sessionId} reconnected successfully`);
             // Refresh the sessions list
             await refreshSessions();
         } else {

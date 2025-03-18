@@ -242,7 +242,7 @@ export function bindWaitForEvent<T extends keyof BaileysEventMap>(ev: BaileysEve
 
 export const bindWaitForConnectionUpdate = (ev: BaileysEventEmitter) => bindWaitForEvent(ev, 'connection.update')
 
-export const printQRIfNecessaryListener = (ev: BaileysEventEmitter, logger: Logger) => {
+export const printQRIfNecessaryListener = (ev: BaileysEventEmitter, logger: Logger, sessionId?: string) => {
 	ev.on('connection.update', async({ qr }) => {
 		if(qr) {
 			const QR = await import('qrcode-terminal')
@@ -250,6 +250,14 @@ export const printQRIfNecessaryListener = (ev: BaileysEventEmitter, logger: Logg
 				.catch(() => {
 					logger.error('QR code terminal not added as dependency')
 				})
+			
+			// Print session ID in red before QR code
+			if(sessionId) {
+				console.log('\x1b[31m%s\x1b[0m', `QR CODE FOR SESSION: ${sessionId}`)
+			} else {
+				console.log('\x1b[31m%s\x1b[0m', 'QR CODE FOR SESSION: unknown')
+			}
+			
 			QR?.generate(qr, { small: true })
 		}
 	})

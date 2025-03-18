@@ -1,18 +1,16 @@
 const qrcode = require('qrcode');
 const makeWASocket = require('@whiskeysockets/baileys').default;
-const { 
-    useMultiFileAuthState, 
-    DisconnectReason, 
-    makeInMemoryStore 
-} = require('@whiskeysockets/baileys');
-let path = require('path');
-let fs = require('fs');
-let fetch = require('node-fetch');
-let sessions = new Map();
+const { useMultiFileAuthState, DisconnectReason, makeInMemoryStore } = require('@whiskeysockets/baileys');
+const path = require('path');
+const fs = require('fs');
+const pino = require('pino'); // Add pino for logging
+
+const sessions = new Map();
 const sessionsDir = path.join(process.cwd(), 'whatsapp-sessions');
-const handleNewMessage = require('./newmessage');
-const { storeMedia } = require('./downloadmedia');
-const WebSocket = require('ws');
+const connectionStates = new Map();
+const SESSION_RETRY_DELAYS = new Map();
+const QR_TIMEOUT = 2 * 60 * 1000; // 2 minutes
+const MAX_SESSION_RETRIES = 2;
 
 
 /* THIS IS A API WHICH USES BAILEYS TO CONNECT TO WHATSAPP WEB AND FORWARD MESSAGES TO THE WEBHOOK  
@@ -20,8 +18,7 @@ https://github.com/WhiskeySockets/Baileys.git
 Documentation: https://whiskeysockets.dev/Baileys/
 */
 
-// Add connection state tracking
-let connectionStates = new Map();
+
 
 // Add store configuration
 const storeConfig = {
@@ -37,82 +34,75 @@ const storeConfig = {
     }
 };
 
-// Add at the top with other constants
-let QR_TIMEOUT = 2 * 60 * 1000; // 2 minutes in milliseconds
-let MAX_SESSION_RETRIES = 2;
-let SESSION_RETRY_DELAYS = new Map(); // Track retry attempts and timestamps
 
-// Add this helper function at the top with other functions
+
 function ensureSessionDir(sessionDir) {
-    try {
-        if (!fs.existsSync(sessionDir)) {
-            console.log(`ensureSessionDir: Creating session directory at ${sessionDir}\n`);
-            fs.mkdirSync(sessionDir, { recursive: true });
-        }
-        return true;
-    } catch (error) {
-        console.error(`ensureSessionDir: Error creating directory: ${error}\n`);
-        return false;
+    if (!fs.existsSync(sessionDir)) {
+        console.log(`Creating session directory at ${sessionDir}`);
+        fs.mkdirSync(sessionDir, { recursive: true });
     }
 }
 
 async function startBaileysConnection(sessionId = 'default') {
-    let sessionDir = path.join(sessionsDir, sessionId);
-    let store;
-    
-    try {
-        // Ensure session directory exists
-        ensureSessionDir(sessionDir);
-        
-        // Initialize store with error handling
-        try {
-            store = makeInMemoryStore(storeConfig);
-            store.logger.level = 'debug';
-        } catch (error) {
-            console.error(`startBaileysConnection: Error initializing store: ${error}`);
-            store = null; // Fallback to null if store creation fails
-        }
-        
-        console.log(`startBaileysConnection #542: Starting session ${sessionId}`);
+    const sessionDir = path.join(sessionsDir, sessionId);
+    ensureSessionDir(sessionDir);
 
-        // Check retry info
-        let retryInfo = SESSION_RETRY_DELAYS.get(sessionId) || { count: 0, lastAttempt: 0 };
-        let now = Date.now();
+    const logger = pino({ level: 'debug' }); // Unified logger
+    let store;
+
+    try {
+        store = makeInMemoryStore({ logger });
+        console.log(`Starting session ${sessionId}`);
+        
+        const retryInfo = SESSION_RETRY_DELAYS.get(sessionId) || { count: 0, lastAttempt: 0 };
+        const now = Date.now();
         
         if (retryInfo.count >= MAX_SESSION_RETRIES) {
-            console.log(`startBaileysConnection #870: Session ${sessionId} exceeded maximum retry attempts`);
+            console.log(`Session ${sessionId} exceeded max retries`);
             await cleanupSession(sessionId, null, sessionDir);
             return null;
         }
 
         const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
-        
-        const sock = makeWASocket({
+    const sock = makeWASocket({
             auth: state,
             printQRInTerminal: true,
-            defaultQueryTimeoutMs: undefined
+            logger,
+            defaultQueryTimeoutMs: 60000,
+            sessionId,
+            browser: ['Ubuntu', 'Chrome', '22.04.4'], // Match test.js
+            version: [2, 3000, 1019707846], // Match test.js
+            qrTimeout: QR_TIMEOUT,
         });
 
-        // Only bind store if it was successfully created
-        if (store) {
-            console.log(`startBaileysConnection: Binding store for ${sessionId}`);
-            store.bind(sock.ev);
-            
-            // Save store periodically
-            const storeFile = path.join(sessionDir, 'store.json');
-            setInterval(() => {
-                store.writeToFile(storeFile);
-            }, 10000);
-        }
+        store.bind(sock.ev);
+        console.log(`Binding store for ${sessionId}`);
+        const storeFile = path.join(sessionDir, 'store.json');
+        setInterval(() => store.writeToFile(storeFile), 30000); // Increase to 30s
 
-        // Store session with store (if available)
-        sessions.set(sessionId, { sock, store: store || {} });
-        
-        // Rest of the connection logic...
-        
+        sessions.set(sessionId, { sock, store });
+
+        sock.ev.on('connection.update', (update) => {
+            const { connection, lastDisconnect } = update;
+            if (connection === 'close') {
+                const statusCode = lastDisconnect?.error?.output?.statusCode;
+                const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+                console.log(`Connection closed for ${sessionId}: Status ${statusCode}`, lastDisconnect?.error, 'Reconnecting:', shouldReconnect);
+                if (shouldReconnect) {
+                    SESSION_RETRY_DELAYS.set(sessionId, { count: retryInfo.count + 1, lastAttempt: now });
+                    setTimeout(() => startBaileysConnection(sessionId), 2000); // Delay retry
+                }
+            } else if (connection === 'open') {
+                console.log(`Opened connection for ${sessionId}`);
+                connectionStates.set(sessionId, { state: 'open' });
+            }
+        });
+
+        sock.ev.on('creds.update', saveCreds);
         return sock;
     } catch (error) {
-        console.error(`startBaileysConnection: Error for session ${sessionId}:`, error);
+        console.error(`Error for session ${sessionId}:`, error);
+        SESSION_RETRY_DELAYS.set(sessionId, { count: retryInfo.count + 1, lastAttempt: Date.now() });
         throw error;
     }
 }
@@ -310,6 +300,33 @@ async function getStoreData(store, sessionId) {
     }
 }
 
+async function completeSessionWipeout() {
+    try {
+        // Close and cleanup all active sessions
+        for (const [sessionId, session] of sessions.entries()) {
+            if (session?.sock) {
+                await cleanupSession(sessionId, session.sock, path.join(sessionsDir, sessionId));
+            }
+        }
+
+        // Clear all maps
+        sessions.clear();
+        connectionStates.clear();
+        SESSION_RETRY_DELAYS.clear();
+
+        // Remove the entire sessions directory
+        if (fs.existsSync(sessionsDir)) {
+            await fs.promises.rm(sessionsDir, { recursive: true, force: true });
+            console.warn('completeSessionWipeout: All session directories removed');
+        }
+
+        return true;
+    } catch (error) {
+        console.error('completeSessionWipeout: Error during wipeout:', error);
+        return false;
+    }
+}
+
 // Update exports
 module.exports = { 
     startBaileysConnection,
@@ -321,5 +338,6 @@ module.exports = {
     cleanupSession,
     fetchChatHistory,
     getStoreData,
-    fetchSessionContacts
+    fetchSessionContacts,
+    completeSessionWipeout
 };
