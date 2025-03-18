@@ -684,6 +684,7 @@ async function loadChats(sessionId) {
     // Declare variables at the top
     let chatsList = document.getElementById('chatsList');
     let placeholder = document.getElementById('chatsPlaceholder');
+    let chatsCount = document.getElementById('chatsCount');
 
     if (!sessionId) { //get first value from sessionId from select
         sessionId = document.getElementById('detailsSessionSelect').value;  
@@ -698,11 +699,20 @@ async function loadChats(sessionId) {
     }
     
     try {
+        // Show loading notification
+        notyf.info('Loading chats...');
         console.log(`loadChats #333: Loading chats for session ${sessionId}`);
         chatsList.innerHTML = '<div class="loading">Loading chats...</div>';
         
         let chats = await getSessionChats(sessionId);
         chatsList.innerHTML = '';
+        
+        // Update chats count
+        if (chatsCount) {
+            chatsCount.innerHTML = chats && chats.length > 0 ? 
+                `<div class="count-badge">${chats.length} chats found</div>` : 
+                '';
+        }
         
         if (chats && chats.length > 0) {
             placeholder.style.display = 'none';
@@ -729,10 +739,16 @@ async function loadChats(sessionId) {
             });
         } else {
             placeholder.style.display = 'block';
+            if (chatsCount) {
+                chatsCount.innerHTML = '';
+            }
         }
     } catch (error) {
         console.error(`loadChats: Error: ${error}\n`);
         notyf.error('Failed to load chats');
+        if (chatsCount) {
+            chatsCount.innerHTML = '';
+        }
     }
 }
 
@@ -741,6 +757,7 @@ async function loadContacts(sessionId) {
     const select = document.getElementById('detailsSessionSelect');
     const contactsList = document.getElementById('contactsList');
     const placeholder = document.getElementById('contactsPlaceholder');
+    const contactsCount = document.getElementById('contactsCount');
     
     // Get sessionId if not provided
     if (!sessionId) {
@@ -758,6 +775,13 @@ async function loadContacts(sessionId) {
     try {
         const response = await getSessionContacts(sessionId);
         contactsList.innerHTML = '';
+        
+        // Update contacts count
+        if (contactsCount) {
+            contactsCount.innerHTML = response.contacts ? 
+                `<div class="count-badge">${response.contacts.length} contacts found</div>` : 
+                '';
+        }
         
         // Check if we have valid contacts
         if (response?.status === 'success' && Array.isArray(response.contacts) && response.contacts.length > 0) {
@@ -792,6 +816,9 @@ async function loadContacts(sessionId) {
         console.error(`loadContacts: Error loading contacts:`, error);
         placeholder.style.display = 'block';
         contactsList.innerHTML = `<div class="error-message">Error loading contacts: ${error.message}</div>`;
+        if (contactsCount) {
+            contactsCount.innerHTML = '';
+        }
     }
 }
 

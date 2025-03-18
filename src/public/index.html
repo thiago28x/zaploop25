@@ -226,27 +226,26 @@
 
                 <!-- Tabs -->
                 <div class="tabs">
-                    <button class="tab-btn active" onclick="loadChats(document.getElementById('detailsSessionSelect').value)">
-                        <i class="ph ph-chats"></i> Chats
-                    </button>
+                    <button class="tab-btn active" onclick="loadChats(document.getElementById('detailsSessionSelect').value)"> <i class="ph ph-chats"></i> Get Chats list  </button>
                     <button class="tab-btn" onclick="loadContacts(document.getElementById('detailsSessionSelect').value)">
-                        <i class="ph ph-address-book"></i> Contacts
+                        <i class="ph ph-address-book"></i> Get Contacts list
                     </button>
                 </div>
                 
                 <!-- Chats Tab -->
                 <div id="chatsTab" class="tab-content active">
                  <!-- Add this where you want the chats to appear -->
-<div id="chatsList"></div>
-<div id="chatsPlaceholder"></div>
-
-                    <div id="chatsPlaceholder" class="placeholder">
-                        <p>No chats available</p>
-                    </div>
+                <div id="chatsCount"></div>
+                <div id="chatsList"></div>
+                <div id="chatsPlaceholder" class="placeholder">
+                    <p>No chats available</p>
+                </div>
                 </div>
 
                  <!-- Contacts Tab -->
         <div id="contactsTab" class="tab-content">
+        <!-- show number of contacts retrieved here -->
+        <div id="contactsCount"></div>
             <div class="list-container">
                 <div id="contactsList" class="items-list">
                     <!-- Contacts will be populated here -->

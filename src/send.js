@@ -413,32 +413,62 @@ router.post("/send-message", validatePhoneNumber, validateMessageBody, async (re
     return await sendTextMessage(req, res);
 });
 
+
+//wip thiago
 // auxiliary function to send messages via GET request, passing the phone and messages as query parameters
-router.get("/send-message", async (req, res) => {
-    const { phone, message } = req.query;
+router.get("/send", async (req, res) => {
+    //http://209.145.62.86:4001/send-message?phone=55489185014&message=eai
+    const { phone, message, type } = req.query;
     
     if (!phone || !message) {
         return res.status(400).json({
             error: 'Missing parameters',
-            details: 'phone and message are required in query parameters'
+            details: 'Zaploop received your request :) \nYou must send, in the url: the phone and message are required in query parameters. \n use this format\nhttp://209.145.62.86:4001/send-message?phone=554899185014&message=HelloWorld&sessionId=<yourSessionName>&type=text'
         });
     }
 
-    // Clean and format phone number
-    const cleanPhone = phone
-        .trim()
-        .replace(/@s\.whatsapp\.net/g, '')
-        .replace(/@c\.us/g, '')
-        .replace(/\D/g, '');
+    if (type === 'text' || !type) {
+        // Clean and format phone number
+        const cleanPhone = phone
+            .trim()
+            .replace(/@s\.whatsapp\.net/g, '')
+            .replace(/@c\.us/g, '')
+            .replace(/\D/g, '');
 
-    req.body = {
-        jid: cleanPhone + '@s.whatsapp.net',
-        message: message,
-        sessionId: 'default'
-    };
+        // Format the phone number
+        const jid = `${
+            cleanPhone.includes('@') ? cleanPhone : `${
+                cleanPhone.length === 12 ? cleanPhone : `${
+                    cleanPhone.length === 11 ? `55${cleanPhone}` : `${
+                        cleanPhone.length === 10 ? `
+                        55${cleanPhone}` : cleanPhone
+                    }`
+                }`
+            }@s.whatsapp.net`
+        }`;
 
-    return await sendTextMessage(req, res);
+        try {
+        const sentMsg = await client.sendMessage(jid, { text: message });
+
+            console.log(` /send-message: Message sent successfully\n`);
+            return res.status(200).send({ 
+                status: "success", 
+                message: "Message sent successfully",
+                messageInfo: sentMsg
+            });
+        } catch (error) {
+            console.error(` /send-message: Error sending message: ${error}\n`);
+            return res.status(500).send({ 
+                status: "error", 
+                message: "Failed to send message",
+                error: error.message
+            });
+        }
+    }
 });
+
+
+
 
 // Send Image (original route: /send-image)
 router.post("/send-image", validatePhoneNumber, validateMessageBody, async (req, res) => {

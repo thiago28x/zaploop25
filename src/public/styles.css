@@ -110,6 +110,13 @@ label {
     padding-bottom: 50px;
 }
 
+#chatsList {
+    display: grid;
+    gap: 10px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
 .section.active {
     display: block;
 }
