@@ -417,7 +417,8 @@ router.post("/send-message", validatePhoneNumber, validateMessageBody, async (re
 //wip thiago
 // auxiliary function to send messages via GET request, passing the phone and messages as query parameters
 router.get("/send", async (req, res) => {
-    //http://209.145.62.86:4001/send-message?phone=55489185014&message=eai
+    console.log(` BAILE 🧜‍♀️🧜‍♀️ send #700: Received GET request to /send`);
+    //http://209.145.62.86:4001/send?phone=55489185014&message=eai
     const { phone, message, type } = req.query;
     
     if (!phone || !message) {

@@ -773,7 +773,37 @@ async function loadContacts(sessionId) {
     }
     
     try {
-        const response = await getSessionContacts(sessionId);
+        // Display loading state
+        contactsList.innerHTML = '<div class="loading">Loading contacts...</div>';
+        
+        // First attempt to get contacts
+        let response = await getSessionContacts(sessionId);
+        
+        // If no contacts were found, try to trigger a sync and fetch again
+        if (!response.contacts || response.contacts.length === 0) {
+            console.log(`loadContacts: No contacts found, attempting to sync contacts for ${sessionId}`);
+            
+            try {
+                // Call the new sync endpoint
+                await fetch('/contacts/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ session: sessionId })
+                });
+                
+                // Give the server a moment to process the sync
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Try fetching contacts again
+                response = await getSessionContacts(sessionId);
+            } catch (syncError) {
+                console.error(`loadContacts: Error syncing contacts: ${syncError}`);
+                // Continue with whatever contacts we have
+            }
+        }
+        
         contactsList.innerHTML = '';
         
         // Update contacts count

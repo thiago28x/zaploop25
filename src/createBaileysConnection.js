@@ -30,11 +30,20 @@ const storeConfig = {
     syncFullHistory: true,
     // Add contacts configuration
     contacts: {
-        syncOnConnect: true  // Ensure contacts sync on connection
+        syncOnConnect: false  // Disable automatic contact syncing (changed from true)
     }
 };
 
-
+// Create a custom logger with minimal store logging
+function createLoggers() {
+    const mainLogger = pino({ level: 'debug' });
+    const storeLogger = pino({ 
+        level: 'error', // Set to 'error' to suppress info/debug logs from the store
+        name: 'baileys-store'
+    });
+    
+    return { mainLogger, storeLogger };
+}
 
 function ensureSessionDir(sessionDir) {
     if (!fs.existsSync(sessionDir)) {
@@ -47,11 +56,14 @@ async function startBaileysConnection(sessionId = 'default') {
     const sessionDir = path.join(sessionsDir, sessionId);
     ensureSessionDir(sessionDir);
 
-    const logger = pino({ level: 'debug' }); // Unified logger
+    const { mainLogger, storeLogger } = createLoggers();
     let store;
 
     try {
-        store = makeInMemoryStore({ logger });
+        store = makeInMemoryStore({ 
+            ...storeConfig,
+            logger: storeLogger 
+        });
         console.log(`Starting session ${sessionId}`);
         
         const retryInfo = SESSION_RETRY_DELAYS.get(sessionId) || { count: 0, lastAttempt: 0 };
@@ -67,7 +79,7 @@ async function startBaileysConnection(sessionId = 'default') {
     const sock = makeWASocket({
             auth: state,
             printQRInTerminal: true,
-            logger,
+            logger: mainLogger,
             defaultQueryTimeoutMs: 60000,
             sessionId,
             browser: ['Ubuntu', 'Chrome', '22.04.4'], // Match test.js
