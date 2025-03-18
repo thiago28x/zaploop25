@@ -19,26 +19,6 @@ async function gracefulShutdown() {
             });
         }
 
-        // Gracefully close sockets but preserve session data
-        for (const [sessionId, session] of sessions.entries()) {
-            if (session?.sock) {
-                try {
-                    // Remove event listeners
-                    if (session.sock.ev) {
-                        session.sock.ev.removeAllListeners();
-                    }
-                    // Close socket connection without deleting data
-                    if (typeof session.sock.close === 'function') {
-                        await session.sock.close();
-                    }
-                    console.log(`Gracefully closed socket for session: ${sessionId}`);
-                } catch (error) {
-                    console.warn(`Could not gracefully close socket for session ${sessionId}:`, error);
-                }
-            }
-        }
-        
-        console.log('All connections closed gracefully. Session data preserved.');
         process.exit(0);
     } catch (error) {
         console.error('Error during graceful shutdown:', error);
