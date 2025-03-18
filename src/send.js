@@ -419,12 +419,12 @@ router.post("/send-message", validatePhoneNumber, validateMessageBody, async (re
 router.get("/send", async (req, res) => {
     console.log(` BAILE 🧜‍♀️🧜‍♀️ send #700: Received GET request to /send`);
     //http://209.145.62.86:4001/send?phone=55489185014&message=eai
-    const { phone, message, type } = req.query;
+    const { phone, message, type, sessionId } = req.query;
     
-    if (!phone || !message) {
+    if (!phone || !message || !sessionId) {
         return res.status(400).json({
             error: 'Missing parameters',
-            details: 'Zaploop received your request :) \nYou must send, in the url: the phone and message are required in query parameters. \n use this format\nhttp://209.145.62.86:4001/send-message?phone=554899185014&message=HelloWorld&sessionId=<yourSessionName>&type=text'
+            details: 'Zaploop received your request :) \nYou must send, in the url: the phone, message, and sessionId are required in query parameters. \n use this format\nhttp://209.145.62.86:4001/send?phone=554899185014&message=HelloWorld&sessionId=<yourSessionName>&type=text'
         });
     }
 
@@ -437,28 +437,24 @@ router.get("/send", async (req, res) => {
             .replace(/\D/g, '');
 
         // Format the phone number
-        const jid = `${
-            cleanPhone.includes('@') ? cleanPhone : `${
-                cleanPhone.length === 12 ? cleanPhone : `${
-                    cleanPhone.length === 11 ? `55${cleanPhone}` : `${
-                        cleanPhone.length === 10 ? `
-                        55${cleanPhone}` : cleanPhone
-                    }`
-                }`
-            }@s.whatsapp.net`
-        }`;
+        const jid = `${cleanPhone}@s.whatsapp.net`;
 
         try {
-        const sentMsg = await client.sendMessage(jid, { text: message });
+            let client = getSession(sessionId);
+            if (!client) {
+                return res.status(404).send({ error: "no session found" });
+            }
 
-            console.log(` /send-message: Message sent successfully\n`);
+            const sentMsg = await client.sendMessage(jid, { text: message });
+
+            console.log(` /send: Message sent successfully\n`);
             return res.status(200).send({ 
                 status: "success", 
                 message: "Message sent successfully",
                 messageInfo: sentMsg
             });
         } catch (error) {
-            console.error(` /send-message: Error sending message: ${error}\n`);
+            console.error(` /send: Error sending message: ${error}\n`);
             return res.status(500).send({ 
                 status: "error", 
                 message: "Failed to send message",
